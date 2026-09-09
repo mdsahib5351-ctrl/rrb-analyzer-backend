@@ -65,4 +65,6 @@ const server=http.createServer(async(req,res)=>{
     send(res,404,'text/plain; charset=utf-8','Not found');
   }catch(e){send(res,500,'text/plain; charset=utf-8','Server error')}
 });
-server.listen(PORT,()=>console.log(`TECH SOURCE RRB Analyzer: http://localhost:${PORT}`));
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`TECH SOURCE RRB Analyzer: http://0.0.0.0:${PORT}`);
+});
