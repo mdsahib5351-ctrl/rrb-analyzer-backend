@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="https://i.ibb.co/TBzgsbMS/TS-logo-with-vibrant-gradients.jpg" type="image/jpeg">
+  <title>TECH SOURCE - PAN Service</title>
+  <link rel="stylesheet" href="pan-service.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="pan-service.js" defer></script>
+</head>
+<body>
+  <header class="page-header">
+    <div class="header-inner">
+      <div>
+        <span class="eyebrow">TECH SOURCE</span>
+        <h1>PAN Card Service</h1>
+        <p>New application, status tracking, payment, and official download links in one place.</p>
+      </div>
+      <div class="auth-card" id="authCard">
+        <button class="btn light" type="button" id="loginOpenBtn">Login</button>
+        <div class="user-chip" id="userChip">
+          <img id="userChipPhoto" src="https://ui-avatars.com/api/?name=TS&background=0f766e&color=fff" alt="Profile">
+          <div>
+            <strong id="userChipName">User</strong>
+            <small id="userChipEmail">email@example.com</small>
+          </div>
+          <button class="icon-button light-icon" type="button" onclick="openProfilePopup()" aria-label="Edit profile">
+            <i class="fa fa-user-pen"></i>
+          </button>
+          <button class="icon-button light-icon" type="button" onclick="logoutUser()" aria-label="Logout">
+            <i class="fa fa-right-from-bracket"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="quick-actions" aria-label="PAN service actions">
+      <button class="action-card" type="button" onclick="openForm()">
+        <span class="icon-wrap"><i class="fa fa-plus-circle"></i></span>
+        <span>
+          <strong>New PAN</strong>
+          <small>Apply for new PAN card</small>
+        </span>
+      </button>
+
+      <button class="action-card" type="button" onclick="openCustomerPaymentCreator()">
+        <span class="icon-wrap"><i class="fa fa-link"></i></span>
+        <span>
+          <strong>Customer Payment</strong>
+          <small>Create a payment link for customer</small>
+        </span>
+      </button>
+
+      <button class="action-card" type="button" onclick="trackstatus()">
+        <span class="icon-wrap"><i class="fa fa-search"></i></span>
+        <span>
+          <strong>Track Status</strong>
+          <small>Check application progress</small>
+        </span>
+      </button>
+
+      <button class="action-card" type="button" onclick="openDownloadPopup()">
+        <span class="icon-wrap"><i class="fa fa-download"></i></span>
+        <span>
+          <strong>Download PAN</strong>
+          <small>Download from your record</small>
+        </span>
+      </button>
+
+      <button class="action-card" type="button" onclick="window.open('https://www.pan.utiitsl.com/PAN_ONLINE/ePANCardHome', '_blank')">
+        <span class="icon-wrap"><i class="fa fa-id-card"></i></span>
+        <span>
+          <strong>UTIITSL Download</strong>
+          <small>Official PAN portal</small>
+        </span>
+      </button>
+
+      <button class="action-card" type="button" onclick="window.open('https://onlineservices.proteantech.in/SiteMaintenance.html', '_blank')">
+        <span class="icon-wrap"><i class="fa fa-building"></i></span>
+        <span>
+          <strong>NSDL Download</strong>
+          <small>Protean / NSDL portal</small>
+        </span>
+      </button>
+
+      <button class="action-card" type="button" onclick="openPaymentCheck()">
+        <span class="icon-wrap"><i class="fa fa-credit-card"></i></span>
+        <span>
+          <strong>Payment Status</strong>
+          <small>Check and pay pending fee</small>
+        </span>
+      </button>
+
+      <button class="action-card" type="button" onclick="openAccountPopup()">
+        <span class="icon-wrap"><i class="fa fa-user-clock"></i></span>
+        <span>
+          <strong>Profile & History</strong>
+          <small>View profile and PAN applications</small>
+        </span>
+      </button>
+    </section>
+
+    <section class="pan-steps-section">
+      <div class="section-head">
+        <span class="eyebrow">How it works</span>
+        <h2>New PAN Apply Steps</h2>
+        <p>New PAN application complete karne ke liye neeche wale simple steps follow karein.</p>
+      </div>
+
+      <div class="pan-steps-grid">
+        <div class="pan-step-card">
+          <span>1</span>
+          <h3>Open New PAN Form</h3>
+          <p>Dashboard par New PAN card click karke application form open karein.</p>
+        </div>
+        <div class="pan-step-card">
+          <span>2</span>
+          <h3>Fill Basic Details</h3>
+          <p>Name, Aadhaar, DOB, gender aur contact details carefully fill karein.</p>
+        </div>
+        <div class="pan-step-card">
+          <span>3</span>
+          <h3>Parents / Guardian</h3>
+          <p>Parents details add karein. Agar applicant minor hai to guardian details mandatory hain.</p>
+        </div>
+        <div class="pan-step-card">
+          <span>4</span>
+          <h3>Address & Documents</h3>
+          <p>PIN code se address fill karein aur photo, signature, Aadhaar, DOB proof upload karein.</p>
+        </div>
+        <div class="pan-step-card">
+          <span>5</span>
+          <h3>Submit & Payment</h3>
+          <p>Form submit karne ke baad ACK milega aur payment page par fee complete karein.</p>
+        </div>
+      </div>
+
+      <div class="pan-price-panel">
+        <div>
+          <span class="eyebrow">Service Fee</span>
+          <h2>New PAN Apply Fee</h2>
+          <p>Application submit hone ke baad ACK number se payment/status track kar sakte hain.</p>
+        </div>
+        <strong>Rs. 190</strong>
+      </div>
+    </section>
+  </main>
+
+  <footer class="dashboard-footer">
+    <div>
+      <strong>TECH SOURCE</strong>
+      <span>PAN Card Service</span>
+    </div>
+    <p>Application support, status tracking, payment check, and official PAN download links.</p>
+  </footer>
+
+  <div id="formScreen" class="fullscreen-form" aria-hidden="true">
+    <form id="newpanForm" class="service-form">
+      <div class="form-titlebar">
+        <div>
+          <span class="eyebrow">Application Form</span>
+          <h2>New PAN Details <span id="minorBadge" class="minor-badge">MINOR PAN</span></h2>
+        </div>
+        <button class="icon-button" type="button" onclick="closeForm()" aria-label="Close form">
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
+
+      <div class="form-stepper" id="formStepper" aria-label="Application steps"></div>
+
+      <section class="form-section" data-step="basic">
+        <h3>Applicant Details</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="lastName">Last Name*</label>
+            <input type="text" id="lastName" required>
+          </div>
+          <div class="form-group">
+            <label for="firstName">First Name</label>
+            <input type="text" id="firstName">
+          </div>
+          <div class="form-group">
+            <label for="middleName">Middle Name</label>
+            <input type="text" id="middleName">
+          </div>
+          <div class="form-group">
+            <label for="aadhar">Aadhaar Number</label>
+            <input type="text" id="aadhar" maxlength="12" inputmode="numeric" required>
+          </div>
+          <div class="form-group">
+            <label for="nameAadhar">Name as per Aadhaar</label>
+            <input type="text" id="nameAadhar" required readonly>
+          </div>
+          <div class="form-group">
+            <label for="dob">Date of Birth</label>
+            <input type="date" id="dob" required onchange="checkAge()">
+          </div>
+          <div class="form-group">
+            <label for="gender">Gender</label>
+            <select id="gender" required>
+              <option value="">Select</option>
+              <option>Male</option>
+              <option>Female</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section class="form-section" data-step="contact">
+        <h3>Contact Details</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="phone">Phone</label>
+            <input type="tel" id="phone" required>
+          </div>
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" required>
+          </div>
+        </div>
+      </section>
+
+      <section class="form-section" data-step="parents">
+        <h3>Parents Details</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="fatherlastName">Father's Last Name*</label>
+            <input type="text" id="fatherlastName" required>
+          </div>
+          <div class="form-group">
+            <label for="fatherFirstName">Father's First Name</label>
+            <input type="text" id="fatherFirstName">
+          </div>
+          <div class="form-group">
+            <label for="fatherMiddleName">Father's Middle Name</label>
+            <input type="text" id="fatherMiddleName">
+          </div>
+          <div class="form-group">
+            <label for="motherlastName">Mother's Last Name*</label>
+            <input type="text" id="motherlastName" required>
+          </div>
+          <div class="form-group">
+            <label for="motherfirstName">Mother's First Name</label>
+            <input type="text" id="motherfirstName">
+          </div>
+          <div class="form-group">
+            <label for="motherMiddleName">Mother's Middle Name</label>
+            <input type="text" id="motherMiddleName">
+          </div>
+        </div>
+      </section>
+
+      <section id="guardianSection" class="form-section hidden-section" data-step="guardian">
+        <h3>Guardian Details</h3>
+        <div class="form-grid" id="guardianFields">
+          <div class="form-group">
+            <label for="guardianlastName">Guardian Last Name*</label>
+            <input type="text" id="guardianlastName">
+          </div>
+          <div class="form-group">
+            <label for="guardianfirstName">Guardian First Name</label>
+            <input type="text" id="guardianfirstName">
+          </div>
+          <div class="form-group">
+            <label for="guardianMiddleName">Guardian Middle Name</label>
+            <input type="text" id="guardianMiddleName">
+          </div>
+        </div>
+      </section>
+
+      <section class="form-section" data-step="address">
+        <h3>Address Details</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="pinCode">Pin Code</label>
+            <input type="text" id="pinCode" maxlength="6" pattern="[0-9]{6}" required oninput="fetchAddress()">
+          </div>
+          <div class="form-group">
+            <label for="flatNo">Flat No/C/O</label>
+            <input type="text" id="flatNo" required>
+          </div>
+          <div class="form-group">
+            <label for="villageCity">Village/City</label>
+            <input type="text" id="villageCity" required>
+          </div>
+          <div class="form-group">
+            <label for="postOffice">Post Office</label>
+            <select id="postOffice">
+              <option value="">Select Post Office</option>
+            </select>
+            <input type="text" id="manualPO" placeholder="Post Office not found? Type here">
+          </div>
+          <div class="form-group">
+            <label for="subDivision">Sub Division</label>
+            <input type="text" id="subDivision" required>
+          </div>
+          <div class="form-group">
+            <label for="district">District</label>
+            <input type="text" id="district" required>
+          </div>
+          <div class="form-group">
+            <label for="state">State</label>
+            <input type="text" id="state" required>
+          </div>
+        </div>
+      </section>
+
+      <section class="form-section" data-step="documents">
+        <h3>Document Type</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="proofOfIdentity">Proof of Identity</label>
+            <select id="proofOfIdentity" required>
+              <option value="A1">Aadhaar Card</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="proofOfAddress">Proof of Address</label>
+            <select id="proofOfAddress" required>
+              <option value="A2">Aadhaar Card</option>
+            </select>
+          </div>
+          <div class="form-group wide-field">
+            <label for="proof_dob">Proof of Birth</label>
+            <select id="proof_dob" name="proof_dob" required>
+              <option value="">--- Select DOB/DOI Proof ---</option>
+              <option value="Affidavit sworn before Magistrate stating Date of Birth (In Copy)">Affidavit sworn before Magistrate stating Date of Birth (In Copy)</option>
+              <option value="Birth Certificate issued by Municipal Authority or any office authorized to issue Birth & Death Certificate by Registrar of Birth and Deaths or the Indian Consulate (In Copy)" selected>Birth Certificate issued by Municipal Authority or authorized office (In Copy)</option>
+              <option value="Central Govt Health Scheme Card or Ex serviceman Contributory Health Scheme photo card (In Copy)">Central Govt Health Scheme Card / Ex-serviceman Health Scheme photo card (In Copy)</option>
+              <option value="Driving Licence (In Copy)">Driving Licence (In Copy)</option>
+              <option value="Marriage Certificate issued by Registrar of Marriages (In Copy)">Marriage Certificate issued by Registrar of Marriages (In Copy)</option>
+              <option value="Matriculation certificate or mark sheet of recognised board (In Copy)">Matriculation certificate or mark sheet of recognised board (In Copy)</option>
+              <option value="Passport (In Copy)">Passport (In Copy)</option>
+              <option value="Pension payment order (In Copy)">Pension payment order (In Copy)</option>
+              <option value="Photo ID card issued by Central Govt or State Govt or a Public Sector undertaking (In Copy)">Photo ID card issued by Govt / PSU (In Copy)</option>
+              <option value="Voters ID card (In Copy)">Voter ID card (In Copy)</option>
+            </select>
+          </div>
+        </div>
+
+        <h3 class="section-subtitle">Upload Documents</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="photo">Photo</label>
+            <input type="file" id="photo" required>
+          </div>
+          <div class="form-group">
+            <label for="signature">Signature</label>
+            <input type="file" id="signature" required>
+          </div>
+          <div class="form-group">
+            <label for="aadhaarFront">Aadhaar Card Front</label>
+            <input type="file" id="aadhaarFront" required>
+          </div>
+          <div class="form-group">
+            <label for="aadhaarBack">Aadhaar Card Back</label>
+            <input type="file" id="aadhaarBack" required>
+          </div>
+          <div class="form-group">
+            <label for="dobProof">DOB Proof Certificate</label>
+            <input type="file" id="dobProof" required>
+          </div>
+          <div id="gFrontBox" class="form-group hidden-section">
+            <label for="guardianAadhaarFront">Guardian Aadhaar Front</label>
+            <input type="file" id="guardianAadhaarFront">
+          </div>
+          <div id="gBackBox" class="form-group hidden-section">
+            <label for="guardianAadhaarBack">Guardian Aadhaar Back</label>
+            <input type="file" id="guardianAadhaarBack">
+          </div>
+        </div>
+      </section>
+
+      <div class="form-footer">
+        <div class="notes">
+          <p><span id="stepProgressText">Step 1 of 5</span>. Documents must be JPG, PDF, or PNG format. PAN Card apply fee: Rs. 190.</p>
+        </div>
+        <div class="form-actions">
+          <button class="btn ghost" type="button" id="prevStepBtn">Back</button>
+          <button class="btn" type="button" id="nextStepBtn">Next</button>
+          <button class="btn" type="submit" id="submitStepBtn">Submit</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div id="downloadPopup" class="popup" aria-hidden="true">
+    <div class="popup-box">
+      <h3>Download PAN</h3>
+      <input type="text" id="ackNo" placeholder="Enter Ack No">
+      <div class="popup-actions">
+        <button onclick="closeDownloadPopup()" class="btn ghost" type="button">Cancel</button>
+        <button onclick="getPan()" class="btn" type="button" id="submitBtn">Submit</button>
+      </div>
+      <p id="downloadMsg" class="message error"></p>
+    </div>
+  </div>
+
+  <div id="authPopup" class="popup" aria-hidden="true">
+    <div class="popup-box auth-popup-box">
+      <h3 id="authTitle">Login</h3>
+      <div class="form-group">
+        <label for="authName">Full Name</label>
+        <input type="text" id="authName" placeholder="Your name">
+      </div>
+      <div class="form-group">
+        <label for="authEmail">Email</label>
+        <input type="email" id="authEmail" placeholder="you@example.com">
+      </div>
+      <div class="form-group">
+        <label for="authPassword">Password</label>
+        <input type="password" id="authPassword" placeholder="Minimum 6 characters">
+      </div>
+      <p id="authMsg" class="message error"></p>
+      <div class="popup-actions">
+        <button class="btn ghost" type="button" onclick="closeAuthPopup()">Cancel</button>
+        <button class="btn" type="button" id="authSubmitBtn">Login</button>
+      </div>
+      <button class="link-button" type="button" id="authSwitchBtn">Create new account</button>
+    </div>
+  </div>
+
+  <div id="profilePopup" class="popup" aria-hidden="true">
+    <div class="popup-box profile-popup-box">
+      <h3>Edit Profile</h3>
+      <div class="profile-photo-edit">
+        <img id="profilePreview" src="https://ui-avatars.com/api/?name=TS&background=0f766e&color=fff" alt="Profile preview">
+        <div class="form-group">
+          <label for="profilePhoto">Profile Photo</label>
+          <input type="file" id="profilePhoto" accept="image/*">
+        </div>
+      </div>
+      <div class="form-grid profile-grid">
+        <div class="form-group">
+          <label for="profileName">Full Name</label>
+          <input type="text" id="profileName">
+        </div>
+        <div class="form-group">
+          <label for="profileEmail">Email</label>
+          <input type="email" id="profileEmail" readonly>
+        </div>
+        <div class="form-group">
+          <label for="profilePhone">Phone</label>
+          <input type="tel" id="profilePhone">
+        </div>
+        <div class="form-group">
+          <label for="profileCity">City</label>
+          <input type="text" id="profileCity">
+        </div>
+        <div class="form-group">
+          <label for="profileAddress">Address</label>
+          <input type="text" id="profileAddress">
+        </div>
+      </div>
+      <p id="profileMsg" class="message"></p>
+      <div class="popup-actions">
+        <button class="btn ghost" type="button" onclick="closeProfilePopup()">Cancel</button>
+        <button class="btn" type="button" onclick="saveProfile()">Save Profile</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="accountPopup" class="popup" aria-hidden="true">
+    <div class="popup-box account-popup-box">
+      <div class="account-popup-head">
+        <button class="btn ghost back-btn" type="button" onclick="closeAccountPopup()">
+          <i class="fa fa-arrow-left"></i>
+          Back
+        </button>
+        <h3>Profile & History</h3>
+        <button class="icon-button close-dark" type="button" onclick="closeAccountPopup()" aria-label="Close">
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
+      <div class="profile-summary">
+        <img id="profileSummaryPhoto" src="https://ui-avatars.com/api/?name=TS&background=0f766e&color=fff" alt="Profile">
+        <div>
+          <span class="eyebrow">Profile</span>
+          <h2 id="profileSummaryName">Login required</h2>
+          <p id="profileSummaryEmail">Login karke apni PAN application history dekhein.</p>
+        </div>
+        <button class="btn ghost" type="button" onclick="openProfilePopup()">Edit Profile</button>
+      </div>
+
+      <div class="history-head">
+        <div>
+          <h2>Application History</h2>
+          <p>Aapne jitne PAN apply kiye hain, unka ACK aur status yahan dikhega.</p>
+        </div>
+        <button class="btn ghost" type="button" onclick="loadApplicationHistory()">Refresh</button>
+      </div>
+      <div class="history-grid" id="historyGrid">
+        <div class="empty-history">Login karne ke baad history yahan show hogi.</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="loadingOverlay">
+    <div class="spinner"></div>
+    <p>Uploading Documents... Please wait</p>
+  </div>
+
+  <div id="paymentPopup" class="popup" aria-hidden="true">
+    <div class="popup-box direct-payment-box">
+      <div id="paymentCheckView">
+        <div class="customer-link-head">
+          <div><span class="eyebrow">PAYMENT</span><h3>Check Payment Status</h3><p>ACK number se current payment status check karein.</p></div>
+          <button class="icon-button close-dark" onclick="closePaymentPopup()" type="button" aria-label="Close"><i class="fa fa-times"></i></button>
+        </div>
+        <input type="text" id="paymentAck" placeholder="Enter Ack No">
+        <div class="popup-actions">
+          <button class="btn ghost" onclick="closePaymentPopup()" type="button">Cancel</button>
+          <button class="btn" onclick="checkPaymentStatus()" type="button">Check</button>
+        </div>
+        <p id="paymentResult" class="message"></p>
+        <button id="payNowBtn" class="btn pay" type="button" onclick="goToPayment()" style="display:none">Pay Now</button>
+      </div>
+      <div id="directPaymentView" hidden>
+        <div class="customer-link-head">
+          <div><span class="eyebrow">DIRECT UPI PAYMENT</span><h3>Complete Payment</h3><p id="directPayCustomer">PAN card payment</p></div>
+          <button class="icon-button close-dark" onclick="closePaymentPopup()" type="button" aria-label="Close"><i class="fa fa-times"></i></button>
+        </div>
+        <div class="direct-pay-summary"><span>Amount</span><strong>₹<b id="directPayAmount">190</b></strong></div>
+        <div class="cp-qr-wrap"><div id="directPayQr"></div><small>Scan with any UPI app</small></div>
+        <div class="cp-upi">UPI ID: <strong>9661905351-3@axl</strong></div>
+        <div class="form-group"><label for="directPayScreenshot">Payment Screenshot*</label><input id="directPayScreenshot" type="file" accept="image/*"></div>
+        <div class="form-group"><label for="directPayUtr">UTR / Transaction ID*</label><input id="directPayUtr" type="text" inputmode="numeric" maxlength="25" placeholder="Enter UTR / Transaction ID"></div>
+        <p id="directPayMsg" class="message"></p>
+        <div class="popup-actions"><button class="btn ghost" type="button" onclick="closePaymentPopup()">Cancel</button><button id="directPaySubmit" class="btn pay" type="button" onclick="submitDirectPaymentProof()">Payment Done & Submit</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="customerPaymentCreator" class="popup" aria-hidden="true">
+    <div class="popup-box customer-link-box">
+      <div class="customer-link-head">
+        <div>
+          <span class="eyebrow">CUSTOMER PAYMENT</span>
+          <h3>Create Payment Link</h3>
+          <p>ACK se customer ki basic details automatic aa jayengi.</p>
+        </div>
+        <button class="icon-button close-dark" type="button" onclick="closeCustomerPaymentCreator()" aria-label="Close"><i class="fa fa-times"></i></button>
+      </div>
+      <div class="form-group">
+        <label for="customerPayAck">ACK Number</label>
+        <input id="customerPayAck" type="text" placeholder="PAN202609120001" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label for="customerPayAmount">Customer Price (₹)</label>
+        <input id="customerPayAmount" type="number" min="1" step="1" value="190" inputmode="numeric">
+      </div>
+      <div class="customer-utr-setting">
+        <span>UTR / Transaction ID</span>
+        <label><input type="radio" name="customerUtrMode" value="required" checked> Required</label>
+        <label><input type="radio" name="customerUtrMode" value="optional"> Optional</label>
+      </div>
+      <div id="customerPayPreview" class="customer-pay-preview">ACK enter karke details load karein.</div>
+      <p id="customerPayCreateMsg" class="message"></p>
+      <div class="popup-actions">
+        <button class="btn ghost" type="button" onclick="closeCustomerPaymentCreator()">Cancel</button>
+        <button class="btn" type="button" id="createCustomerPayBtn" onclick="createCustomerPaymentLink()"><i class="fa fa-link"></i> Create Link</button>
+      </div>
+      <div id="customerPayLinkBox" class="customer-link-result" hidden>
+        <label>Customer Payment Link</label>
+        <div class="link-copy-row"><input id="customerPayLink" readonly><button class="btn" type="button" onclick="copyCustomerPaymentLink()"><i class="fa fa-copy"></i> Copy</button></div>
+        <button class="btn pay" type="button" onclick="shareCustomerPaymentLink()"><i class="fa fa-share-nodes"></i> Share to Customer</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="customerPaymentPage" class="customer-payment-page" aria-hidden="true">
+    <div class="customer-payment-card">
+      <div class="cp-brand">TECH SOURCE</div>
+      <div class="cp-icon"><i class="fa fa-indian-rupee-sign"></i></div>
+      <p class="cp-kicker">PAN CARD PAYMENT</p>
+      <h1 id="cpTitle">Payment Pending</h1>
+      <p id="cpMessage" class="cp-message">Dear Customer, your PAN card payment is pending. Please complete your payment to continue the PAN card process.</p>
+      <div class="cp-customer">
+        <div><span>Name</span><strong id="cpName">—</strong></div>
+        <div><span>Mobile</span><strong id="cpPhone">—</strong></div>
+        <div><span>Email</span><strong id="cpEmail">—</strong></div>
+        <div><span>ACK</span><strong id="cpAck">—</strong></div>
+      </div>
+      <div class="cp-amount"><span>Amount to Pay</span><strong>₹<b id="cpAmount">0</b></strong></div>
+      <div class="cp-qr-wrap">
+        <div id="cpQr"></div>
+        <small>Scan with any UPI app</small>
+      </div>
+      <div class="cp-upi">UPI ID: <strong id="cpUpi">9661905351-3@axl</strong></div>
+      <button id="cpDoneBtn" class="cp-done-btn" type="button" onclick="customerPaymentDone()"><i class="fa fa-check-circle"></i> Payment Done</button>
+      <p id="cpStatus" class="cp-status"></p>
+      <div id="cpUtrWrap" class="cp-utr-wrap" hidden>
+        <label for="cpUtr">UTR / Transaction ID <span id="cpUtrRequiredMark">*</span></label>
+        <input id="cpUtr" type="text" inputmode="numeric" maxlength="25" placeholder="Enter UTR / Transaction ID">
+      </div>
+      <button id="cpSubmitProofBtn" class="cp-submit-proof" type="button" onclick="submitCustomerPaymentRequest()" hidden>Submit Payment Request</button>
+      <div class="cp-secure"><i class="fa fa-shield-halved"></i> Secure payment request • TECH SOURCE</div>
+    </div>
+  </div>
+
+  <div id="trackPopup" class="popup" aria-hidden="true">
+    <div class="popup-box">
+      <h3>Application Status</h3>
+      <div class="form-group track-search">
+        <label for="trackAckInput">ACK Number</label>
+        <input type="text" id="trackAckInput" placeholder="Enter ACK No">
+      </div>
+      <div class="popup-actions track-actions">
+        <button class="btn ghost" onclick="closeTrackPopup()" type="button">Close</button>
+        <button class="btn" onclick="submitTrackStatus()" type="button" id="trackSubmitBtn">Check Status</button>
+      </div>
+      <div id="trackDetails" class="message"></div>
+      <button id="payBtn" class="btn pay" type="button">Pay Now</button>
+    </div>
+  </div>
+
+  <button id="geminiFab" class="gemini-fab" type="button" onclick="toggleGeminiPanel()" aria-label="Open Gemini AI">✦</button>
+  <section id="geminiPanel" class="gemini-panel" aria-label="Gemini AI Copilot">
+    <div class="gemini-head"><div class="gdot">✦</div><div><strong>Gemini AI</strong><small>Fast Page Copilot</small></div><button class="gemini-close" type="button" onclick="toggleGeminiPanel()">×</button></div>
+    <div id="geminiMessages" class="gemini-messages"><div class="gmsg ai">Namaste! Main Gemini AI hoon. Aap ek hi message me multiple kaam de sakte hain—jaise “form kholo, naam Rahul, DOB 01/01/2000, mobile 98xxxxxx fill karo”. Main matching fields aur buttons ko ek saath handle karunga.</div></div>
+    <div id="geminiStatus" class="gemini-status">Ready</div>
+    <div id="geminiSuggestions" class="gemini-suggestions"></div>
+    <div class="gemini-input"><textarea id="geminiInput" placeholder="Message Gemini..." rows="1"></textarea><button id="geminiSend" class="gemini-send" type="button" onclick="sendGeminiMessage()">➤</button></div>
+  </section>
+
+</body>
+</html>
