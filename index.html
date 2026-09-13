@@ -52,6 +52,14 @@
         </span>
       </button>
 
+      <button class="action-card" type="button" onclick="openCorrectionForm()">
+        <span class="icon-wrap"><i class="fa fa-pen-to-square"></i></span>
+        <span>
+          <strong>PAN Correction</strong>
+          <small>Update PAN details and documents</small>
+        </span>
+      </button>
+
       <button class="action-card" type="button" onclick="openCustomerPaymentCreator()">
         <span class="icon-wrap"><i class="fa fa-link"></i></span>
         <span>
@@ -378,6 +386,14 @@
             <input type="file" id="guardianAadhaarBack">
           </div>
         </div>
+      <div class="pan-preview-box">
+        <div class="preview-head"><div><span class="eyebrow">LIVE PREVIEW</span><h3>PAN Card Preview</h3></div><span class="preview-chip">New PAN</span></div>
+        <div class="dummy-pan-card">
+          <div class="dummy-pan-top"><strong>INCOME TAX DEPARTMENT</strong><span>GOVT. OF INDIA</span></div>
+          <div class="dummy-pan-body"><div class="dummy-photo"><img id="newPanPreviewPhoto" src="" alt="Photo"></div><div class="dummy-pan-info"><div><small>Name</small><strong id="newPanPreviewName">YOUR NAME</strong></div><div><small>Father's Name</small><strong id="newPanPreviewFather">FATHER NAME</strong></div><div class="dummy-pan-row"><div><small>DOB</small><strong id="newPanPreviewDob">DD/MM/YYYY</strong></div><div><small>PAN</small><strong id="newPanPreviewNumber">XXXX</strong></div></div></div></div>
+        </div>
+      </div>
+
       </section>
 
       <div class="form-footer">
@@ -392,6 +408,89 @@
       </div>
     </form>
   </div>
+
+  <div id="correctionScreen" class="fullscreen-form correction-screen" aria-hidden="true">
+    <form id="correctionForm" class="service-form">
+      <div class="form-titlebar">
+        <div><span class="eyebrow">PAN CORRECTION</span><h2>PAN Correction Application</h2><p class="form-subtitle">Existing PAN verify karke required corrections select karein. Multiple corrections ek saath allowed hain.</p></div>
+        <button class="icon-button" type="button" onclick="closeCorrectionForm()" aria-label="Close"><i class="fa fa-times"></i></button>
+      </div>
+      <div class="form-stepper" id="correctionStepper"></div>
+
+      <section class="form-section correction-section" data-cstep="basic">
+        <h3>Basic Details</h3>
+        <div class="form-grid">
+          <div class="form-group wide-field"><label for="corPAN">Existing PAN Number*</label><input id="corPAN" maxlength="10" required placeholder="ABCDE1234F" autocomplete="off"></div>
+          <div class="form-group"><label for="corLastName">Last Name*</label><input id="corLastName" required></div>
+          <div class="form-group"><label for="corFirstName">First Name</label><input id="corFirstName"></div>
+          <div class="form-group"><label for="corMiddleName">Middle Name</label><input id="corMiddleName"></div>
+          <div class="form-group"><label for="corAadhaar">Aadhaar Number*</label><input id="corAadhaar" maxlength="12" inputmode="numeric" required></div>
+          <div class="form-group"><label for="corDob">Date of Birth*</label><input id="corDob" type="date" required></div>
+          <div class="form-group"><label for="corGender">Gender*</label><select id="corGender" required><option value="">Select</option><option>Male</option><option>Female</option></select></div>
+          <div class="form-group"><label for="corFatherName">Father's Name*</label><input id="corFatherName" required></div>
+          <div class="form-group"><label for="corMotherName">Mother's Name</label><input id="corMotherName"></div>
+        </div>
+      </section>
+
+      <section class="form-section correction-section" data-cstep="select">
+        <h3>What do you want to correct?</h3>
+        <p class="section-help">Ek se zyada option tick kar sakte hain. Jo select hoga uska dedicated correction input next step me khulega.</p>
+        <div class="correction-check-grid">
+          <label class="correction-check"><input type="checkbox" value="name" id="corNameCheck"> <span>Name</span></label>
+          <label class="correction-check"><input type="checkbox" value="father" id="corFatherCheck"> <span>Father's Name</span></label>
+          <label class="correction-check"><input type="checkbox" value="mother" id="corMotherCheck"> <span>Mother's Name</span></label>
+          <label class="correction-check"><input type="checkbox" value="dob" id="corDobCheck"> <span>Date of Birth</span></label>
+          <label class="correction-check"><input type="checkbox" value="gender" id="corGenderCheck"> <span>Gender</span></label>
+          <label class="correction-check"><input type="checkbox" value="contact" id="corContactCheck"> <span>Contact Details</span></label>
+          <label class="correction-check"><input type="checkbox" value="address" id="corAddressCheck"> <span>Address</span></label>
+          <label class="correction-check"><input type="checkbox" value="other" id="corOtherCheck"> <span>Other</span></label>
+        </div>
+      </section>
+
+      <section class="form-section correction-section" data-cstep="details">
+        <h3>Correction Details</h3>
+        <p class="section-help">Selected correction fields yahan open honge. Saath hi neeche normal values bhi available rahengi.</p>
+        <div id="correctionDynamicFields" class="form-grid"></div>
+        <div class="normal-data-panel"><div class="panel-title">All entered details</div><div id="correctionNormalSummary" class="normal-summary">Basic details yahan show honge.</div></div>
+      </section>
+
+      <section class="form-section correction-section" data-cstep="contactaddress">
+        <h3>Contact & Address Details</h3>
+        <div class="form-grid">
+          <div class="form-group"><label for="corPhone">Phone*</label><input id="corPhone" type="tel" required></div>
+          <div class="form-group"><label for="corEmail">Email*</label><input id="corEmail" type="email" required></div>
+          <div class="form-group"><label for="corPin">Pin Code*</label><input id="corPin" maxlength="6" inputmode="numeric" required></div>
+          <div class="form-group"><label for="corFlat">Flat No/C/O*</label><input id="corFlat" required></div>
+          <div class="form-group"><label for="corVillage">Village/City*</label><input id="corVillage" required></div>
+          <div class="form-group"><label for="corPost">Post Office*</label><input id="corPost" required></div>
+          <div class="form-group"><label for="corSubDivision">Sub Division*</label><input id="corSubDivision" required></div>
+          <div class="form-group"><label for="corDistrict">District*</label><input id="corDistrict" required></div>
+          <div class="form-group"><label for="corState">State*</label><input id="corState" required></div>
+        </div>
+      </section>
+
+      <section class="form-section correction-section" data-cstep="documents">
+        <h3>Documents — Same as New PAN</h3>
+        <p class="section-help">Correction me bhi New PAN ke exactly same documents required hain.</p>
+        <div class="form-grid">
+          <div class="form-group"><label for="corPhoto">Photo*</label><input id="corPhoto" type="file" accept="image/*" required></div>
+          <div class="form-group"><label for="corSignature">Signature*</label><input id="corSignature" type="file" accept="image/*" required></div>
+          <div class="form-group"><label for="corAadhaarFront">Aadhaar Card Front*</label><input id="corAadhaarFront" type="file" required></div>
+          <div class="form-group"><label for="corAadhaarBack">Aadhaar Card Back*</label><input id="corAadhaarBack" type="file" required></div>
+          <div class="form-group"><label for="corDobProof">DOB Proof Certificate*</label><input id="corDobProof" type="file" required></div>
+        </div>
+        <div class="pan-preview-box correction-preview-box"><div class="preview-head"><div><span class="eyebrow">LIVE PREVIEW</span><h3>PAN Card Preview</h3></div><span class="preview-chip correction-chip">Correction</span></div><div class="dummy-pan-card"><div class="dummy-pan-top"><strong>INCOME TAX DEPARTMENT</strong><span>GOVT. OF INDIA</span></div><div class="dummy-pan-body"><div class="dummy-photo"><img id="corPreviewPhoto" src="" alt="Photo"></div><div class="dummy-pan-info"><div><small>Name</small><strong id="corPreviewName">YOUR NAME</strong></div><div><small>Father's Name</small><strong id="corPreviewFather">FATHER NAME</strong></div><div class="dummy-pan-row"><div><small>DOB</small><strong id="corPreviewDob">DD/MM/YYYY</strong></div><div><small>PAN</small><strong id="corPreviewPan">ABCDE1234F</strong></div></div></div></div></div></div>
+      </section>
+
+      <section class="form-section correction-section" data-cstep="review">
+        <h3>Review & Submit</h3><div id="correctionReview" class="correction-review"></div><div class="submit-warning"><i class="fa fa-circle-info"></i> Submit karne ke baad application final ho jayegi aur payment request open hogi.</div>
+      </section>
+
+      <div class="form-footer"><div class="notes"><p><span id="corStepProgress">Step 1 of 6</span>. PAN format: 5 letters + 4 digits + 1 letter.</p></div><div class="form-actions"><button class="btn ghost" type="button" id="corPrevBtn">Back</button><button class="btn" type="button" id="corNextBtn">Next</button><button class="btn" type="submit" id="corSubmitBtn" style="display:none">Submit Correction</button></div></div>
+    </form>
+  </div>
+
+  <div id="paymentAnimationOverlay" class="payment-animation-overlay" hidden><div class="payment-animation-card"><div class="payment-check-circle"><i class="fa fa-check"></i></div><div class="payment-progress-ring"></div><span class="eyebrow">PAYMENT UPDATE</span><h2 id="paymentAnimationTitle">Payment Received</h2><p id="paymentAnimationText">Your payment request has been sent for verification.</p><div class="payment-status-line"><span></span><b>Verification Pending</b></div></div></div>
 
   <div id="downloadPopup" class="popup" aria-hidden="true">
     <div class="popup-box">
@@ -571,8 +670,8 @@
       </div>
       <div id="customerPayLinkBox" class="customer-link-result" hidden>
         <label>Customer Payment Link</label>
-        <div class="link-copy-row"><input id="customerPayLink" readonly><button class="btn" type="button" onclick="copyCustomerPaymentLink()"><i class="fa fa-copy"></i> Copy</button></div>
-        <button class="btn pay" type="button" onclick="shareCustomerPaymentLink()"><i class="fa fa-share-nodes"></i> Share to Customer</button>
+        <div class="link-copy-row"><input id="customerPayLink" readonly><button class="btn" type="button" onclick="copyCustomerPaymentLink()"><i class="fa fa-copy"></i> Copy</button><button class="btn whatsapp-btn" type="button" onclick="sendCustomerPaymentWhatsApp()"><i class="fa-brands fa-whatsapp"></i> Send WhatsApp</button></div>
+        <button class="btn pay" type="button" onclick="shareCustomerPaymentLink()"><i class="fa fa-share-nodes"></i> Share</button>
       </div>
     </div>
   </div>
@@ -580,6 +679,7 @@
   <div id="customerPaymentPage" class="customer-payment-page" aria-hidden="true">
     <div class="customer-payment-card">
       <div class="cp-brand">TECH SOURCE</div>
+      <div class="cp-photo-wrap"><img id="cpPhoto" src="" alt="Customer Photo"></div>
       <div class="cp-icon"><i class="fa fa-indian-rupee-sign"></i></div>
       <p class="cp-kicker">PAN CARD PAYMENT</p>
       <h1 id="cpTitle">Payment Pending</h1>
@@ -589,6 +689,7 @@
         <div><span>Mobile</span><strong id="cpPhone">—</strong></div>
         <div><span>Email</span><strong id="cpEmail">—</strong></div>
         <div><span>ACK</span><strong id="cpAck">—</strong></div>
+        <div><span>Application</span><strong id="cpApplicationType">New PAN</strong></div>
       </div>
       <div class="cp-amount"><span>Amount to Pay</span><strong>₹<b id="cpAmount">0</b></strong></div>
       <div class="cp-qr-wrap">

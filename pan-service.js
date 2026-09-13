@@ -442,6 +442,56 @@ function clearDraft() {
   localStorage.removeItem(getDraftKey());
 }
 
+function resetFormFieldsBySelector(selector) {
+  document.querySelectorAll(selector).forEach((el) => {
+    if (el.type === "file") {
+      el.value = "";
+    } else if (el.type === "checkbox" || el.type === "radio") {
+      el.checked = false;
+    } else {
+      el.value = "";
+    }
+  });
+}
+
+function resetNewPanFormAfterSubmit() {
+  clearTimeout(draftSaveTimer);
+  const form = document.getElementById("newpanForm");
+  if (!form) return;
+  form.reset();
+  form.querySelectorAll("input[type=file]").forEach((el) => { el.value = ""; });
+  const po = document.getElementById("postOffice");
+  if (po) po.innerHTML = '<option value="">Select Post Office</option>';
+  const manual = document.getElementById("manualPO");
+  if (manual) manual.value = "";
+  isMinorApplicant = false;
+  currentStepIndex = 0;
+  formData = {};
+  const preview = document.getElementById("newPanPreviewPhoto");
+  if (preview) preview.removeAttribute("src");
+  updateNewPanPreview();
+  renderSteps();
+  clearDraft();
+}
+
+function updateNewPanPreview() {
+  const name = [document.getElementById("firstName")?.value, document.getElementById("middleName")?.value, document.getElementById("lastName")?.value].filter(Boolean).join(" ").trim();
+  const father = [document.getElementById("fatherFirstName")?.value, document.getElementById("fatherMiddleName")?.value, document.getElementById("fatherlastName")?.value].filter(Boolean).join(" ").trim();
+  const dob = document.getElementById("dob")?.value || "";
+  const photo = document.getElementById("photo")?.files?.[0];
+  const nameEl = document.getElementById("newPanPreviewName");
+  const fatherEl = document.getElementById("newPanPreviewFather");
+  const dobEl = document.getElementById("newPanPreviewDob");
+  const img = document.getElementById("newPanPreviewPhoto");
+  if (nameEl) nameEl.textContent = name || "YOUR NAME";
+  if (fatherEl) fatherEl.textContent = father || "FATHER NAME";
+  if (dobEl) dobEl.textContent = dob ? new Date(dob + "T00:00:00").toLocaleDateString("en-IN") : "DD/MM/YYYY";
+  if (img && photo) {
+    if (img.dataset.objectUrl) URL.revokeObjectURL(img.dataset.objectUrl);
+    const url = URL.createObjectURL(photo); img.src = url; img.dataset.objectUrl = url;
+  }
+}
+
 function scheduleDraftSave() {
   clearTimeout(draftSaveTimer);
   draftSaveTimer = setTimeout(() => saveDraft(true), 500);
@@ -811,6 +861,7 @@ document.getElementById("newpanForm").addEventListener("submit", async function 
 
     formData = {
       ackNo,
+      applicationType: "New PAN",
       userId: currentUser.uid,
       userEmail: currentUser.email,
       firstName,
@@ -850,7 +901,8 @@ document.getElementById("newpanForm").addEventListener("submit", async function 
     await db.collection("applications").add(formData);
     generatePDF(formData);
     clearDraft();
-    showToast("Application submitted");
+    resetNewPanFormAfterSubmit();
+    showToast("Application submitted — form reset ho gaya");
 
     setTimeout(() => {
       localStorage.setItem("ackNo", ackNo);
@@ -864,6 +916,149 @@ document.getElementById("newpanForm").addEventListener("submit", async function 
     submitBtn.innerText = "Submit";
   }
 });
+
+/* ================= PAN CORRECTION ================= */
+const correctionSteps = [
+  { id: "basic", label: "Basic Details" },
+  { id: "select", label: "Select Correction" },
+  { id: "details", label: "Correction Details" },
+  { id: "contactaddress", label: "Contact & Address" },
+  { id: "documents", label: "Documents" },
+  { id: "review", label: "Review" }
+];
+let correctionStepIndex = 0;
+let correctionDraftTimer = null;
+
+function correctionDraftKey() {
+  const owner = currentUser?.uid || currentUser?.email || "guest";
+  return `panCorrectionDraft:${owner}`;
+}
+function correctionInputIds() {
+  return ["corPAN","corLastName","corFirstName","corMiddleName","corAadhaar","corDob","corGender","corFatherName","corMotherName","corPhone","corEmail","corPin","corFlat","corVillage","corPost","corSubDivision","corDistrict","corState","corOtherValue"];
+}
+function selectedCorrections() {
+  return [...document.querySelectorAll('#correctionScreen input[type="checkbox"]:checked')].map(x => x.value);
+}
+function saveCorrectionDraft() {
+  if (!currentUser) return;
+  const values = {};
+  correctionInputIds().forEach(id => { const el=document.getElementById(id); if(el) values[id]=el.value; });
+  localStorage.setItem(correctionDraftKey(), JSON.stringify({values, selected:selectedCorrections(), step:correctionStepIndex, savedAt:Date.now()}));
+}
+function scheduleCorrectionDraft() { clearTimeout(correctionDraftTimer); correctionDraftTimer=setTimeout(saveCorrectionDraft,400); }
+function clearCorrectionDraft() { if(currentUser) localStorage.removeItem(correctionDraftKey()); }
+function renderCorrectionSteps() {
+  const stepper=document.getElementById("correctionStepper");
+  if(!stepper)return;
+  correctionStepIndex=Math.max(0,Math.min(correctionSteps.length-1,correctionStepIndex));
+  stepper.innerHTML=correctionSteps.map((x,i)=>`<span class="step-pill ${i===correctionStepIndex?'is-active':i<correctionStepIndex?'is-done':''}" data-number="${i+1}">${x.label}</span>`).join("");
+  document.querySelectorAll("#correctionScreen .correction-section").forEach(sec=>{
+    const active=sec.dataset.cstep===correctionSteps[correctionStepIndex].id; sec.classList.toggle("is-active",active);
+    sec.querySelectorAll("input,select,textarea,button").forEach(el=>el.disabled=!active);
+  });
+  document.getElementById("corPrevBtn").style.display=correctionStepIndex===0?"none":"inline-flex";
+  document.getElementById("corNextBtn").style.display=correctionStepIndex===correctionSteps.length-1?"none":"inline-flex";
+  document.getElementById("corSubmitBtn").style.display=correctionStepIndex===correctionSteps.length-1?"inline-flex":"none";
+  document.getElementById("corStepProgress").textContent=`Step ${correctionStepIndex+1} of ${correctionSteps.length}`;
+  updateCorrectionSummary();
+  updateCorrectionPreview();
+}
+function validateCorrectionStep(){
+  const id=correctionSteps[correctionStepIndex].id;
+  if(id==='select' && selectedCorrections().length===0){showToast('Kam se kam ek correction select karein','error');return false;}
+  const sec=document.querySelector(`#correctionScreen .correction-section[data-cstep="${id}"]`);
+  if(!sec)return true;
+  for(const el of sec.querySelectorAll('input,select,textarea')){ if(el.disabled)continue; if(!el.checkValidity()){el.reportValidity();return false;} }
+  if(id==='basic' && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(document.getElementById('corPAN').value.trim().toUpperCase())){document.getElementById('corPAN').setCustomValidity('PAN must be 5 letters + 4 digits + 1 letter');document.getElementById('corPAN').reportValidity();document.getElementById('corPAN').setCustomValidity('');return false;}
+  return true;
+}
+function goCorrectionNext(){if(!validateCorrectionStep())return;correctionStepIndex++;renderCorrectionSteps();saveCorrectionDraft();}
+function goCorrectionPrev(){correctionStepIndex--;renderCorrectionSteps();saveCorrectionDraft();}
+function openCorrectionForm(){
+  if(!currentUser){openAuthPopup('login');return;}
+  document.getElementById('correctionScreen').style.display='block'; document.getElementById('correctionScreen').classList.add('is-open'); document.getElementById('correctionScreen').setAttribute('aria-hidden','false');
+  loadCorrectionDraft(); renderCorrectionSteps();
+}
+function closeCorrectionForm(){saveCorrectionDraft();const s=document.getElementById('correctionScreen');s.style.display='none';s.classList.remove('is-open');s.setAttribute('aria-hidden','true');}
+function loadCorrectionDraft(){
+  if(!currentUser)return; const raw=localStorage.getItem(correctionDraftKey()); if(!raw)return;
+  try{const d=JSON.parse(raw); correctionStepIndex=Number.isInteger(d.step)?d.step:0; Object.entries(d.values||{}).forEach(([id,v])=>{const el=document.getElementById(id);if(el&&el.type!=='file')el.value=v||'';}); (d.selected||[]).forEach(v=>{const el=document.querySelector(`#correctionScreen input[type="checkbox"][value="${CSS.escape(v)}"]`);if(el)el.checked=true;}); renderCorrectionDynamicFields(); syncCorrectionToBase();}catch{localStorage.removeItem(correctionDraftKey());}
+}
+function correctionField(label,id,type='text',placeholder=''){return `<div class="form-group"><label for="${id}">${label}</label><input id="${id}" type="${type}" placeholder="${placeholder}"></div>`;}
+function renderCorrectionDynamicFields(){
+  const box=document.getElementById('correctionDynamicFields'); if(!box)return; const selected=selectedCorrections(); let html='';
+  if(selected.includes('name')) html += `<div class="correction-subcard"><h4>Corrected Name</h4><div class="form-grid">${correctionField('Correct First Name','corNewFirstName')}${correctionField('Correct Middle Name','corNewMiddleName')}${correctionField('Correct Last Name*','corNewLastName')}</div></div>`;
+  if(selected.includes('father')) html += `<div class="correction-subcard"><h4>Corrected Father's Name</h4>${correctionField("New Father's Name",'corNewFatherName')}</div>`;
+  if(selected.includes('mother')) html += `<div class="correction-subcard"><h4>Corrected Mother's Name</h4>${correctionField("New Mother's Name",'corNewMotherName')}</div>`;
+  if(selected.includes('dob')) html += `<div class="correction-subcard"><h4>Corrected DOB</h4>${correctionField('New Date of Birth','corNewDob','date')}</div>`;
+  if(selected.includes('gender')) html += `<div class="correction-subcard"><h4>Corrected Gender</h4><div class="form-group"><label for="corNewGender">New Gender</label><select id="corNewGender"><option value="">Select</option><option>Male</option><option>Female</option></select></div></div>`;
+  if(selected.includes('contact')) html += `<div class="correction-subcard"><h4>Corrected Contact</h4><div class="form-grid">${correctionField('New Mobile','corNewPhone','tel')}${correctionField('New Email','corNewEmail','email')}</div></div>`;
+  if(selected.includes('address')) html += `<div class="correction-subcard"><h4>Corrected Address</h4><div class="form-grid">${correctionField('New Pin Code','corNewPin')}${correctionField('New Flat No/C/O','corNewFlat')}${correctionField('New Village/City','corNewVillage')}${correctionField('New Post Office','corNewPost')}${correctionField('New Sub Division','corNewSubDivision')}${correctionField('New District','corNewDistrict')}${correctionField('New State','corNewState')}</div></div>`;
+  if(selected.includes('other')) html += `<div class="correction-subcard"><h4>Other Correction</h4><div class="form-group"><label for="corOtherValue">Describe Other Correction</label><textarea id="corOtherValue" rows="4" placeholder="What else needs correction?"></textarea></div></div>`;
+  box.innerHTML=html||'<div class="empty-correction">No correction selected yet.</div>';
+  const dynamicIds=['corNewFirstName','corNewMiddleName','corNewLastName','corNewFatherName','corNewMotherName','corNewDob','corNewGender','corNewPhone','corNewEmail','corNewPin','corNewFlat','corNewVillage','corNewPost','corNewSubDivision','corNewDistrict','corNewState','corOtherValue'];
+  dynamicIds.forEach(id=>{const el=document.getElementById(id);if(el){el.addEventListener('input',()=>{syncCorrectionToBase();updateCorrectionPreview();updateCorrectionSummary();scheduleCorrectionDraft();});el.addEventListener('change',()=>{syncCorrectionToBase();updateCorrectionPreview();updateCorrectionSummary();scheduleCorrectionDraft();});}});
+}
+function syncCorrectionToBase(){
+  const selected=selectedCorrections();
+  const set=(id,val)=>{const el=document.getElementById(id);if(el&&val!==undefined)el.value=val||'';};
+  if(selected.includes('name')){set('corFirstName',document.getElementById('corNewFirstName')?.value);set('corMiddleName',document.getElementById('corNewMiddleName')?.value);set('corLastName',document.getElementById('corNewLastName')?.value);}
+  if(selected.includes('father'))set('corFatherName',document.getElementById('corNewFatherName')?.value);
+  if(selected.includes('mother'))set('corMotherName',document.getElementById('corNewMotherName')?.value);
+  if(selected.includes('dob'))set('corDob',document.getElementById('corNewDob')?.value);
+  if(selected.includes('gender'))set('corGender',document.getElementById('corNewGender')?.value);
+  if(selected.includes('contact')){set('corPhone',document.getElementById('corNewPhone')?.value);set('corEmail',document.getElementById('corNewEmail')?.value);}
+  if(selected.includes('address')){['Pin','Flat','Village','Post','SubDivision','District','State'].forEach(k=>set('cor'+k,document.getElementById('corNew'+k)?.value));}
+}
+function updateCorrectionSummary(){
+  const box=document.getElementById('correctionNormalSummary'); if(!box)return;
+  const vals=[['Name',[document.getElementById('corFirstName')?.value,document.getElementById('corMiddleName')?.value,document.getElementById('corLastName')?.value].filter(Boolean).join(' ')],['PAN',document.getElementById('corPAN')?.value],['DOB',document.getElementById('corDob')?.value],['Gender',document.getElementById('corGender')?.value],['Father',document.getElementById('corFatherName')?.value],['Mother',document.getElementById('corMotherName')?.value],['Mobile',document.getElementById('corPhone')?.value],['Email',document.getElementById('corEmail')?.value],['Address',[document.getElementById('corFlat')?.value,document.getElementById('corVillage')?.value,document.getElementById('corPost')?.value,document.getElementById('corDistrict')?.value,document.getElementById('corState')?.value,document.getElementById('corPin')?.value].filter(Boolean).join(', ')]];
+  box.innerHTML=vals.map(([k,v])=>`<div><span>${k}</span><strong>${escapeHtml(v||'—')}</strong></div>`).join('');
+}
+function updateCorrectionPreview(){
+  const name=[document.getElementById('corFirstName')?.value,document.getElementById('corMiddleName')?.value,document.getElementById('corLastName')?.value].filter(Boolean).join(' ').trim();
+  const father=document.getElementById('corFatherName')?.value.trim(); const dob=document.getElementById('corDob')?.value; const pan=document.getElementById('corPAN')?.value.trim().toUpperCase();
+  document.getElementById('corPreviewName').textContent=name||'YOUR NAME'; document.getElementById('corPreviewFather').textContent=father||'FATHER NAME'; document.getElementById('corPreviewDob').textContent=dob?new Date(dob+'T00:00:00').toLocaleDateString('en-IN'):'DD/MM/YYYY'; document.getElementById('corPreviewPan').textContent=pan||'ABCDE1234F';
+  const file=document.getElementById('corPhoto')?.files?.[0],img=document.getElementById('corPreviewPhoto'); if(file&&img){if(img.dataset.objectUrl)URL.revokeObjectURL(img.dataset.objectUrl);const url=URL.createObjectURL(file);img.src=url;img.dataset.objectUrl=url;}
+}
+function buildCorrectionData(){
+  const name=[document.getElementById('corFirstName').value,document.getElementById('corMiddleName').value,document.getElementById('corLastName').value].filter(Boolean).join(' ');
+  return {
+    ackNo:generateAck(), applicationType:'PAN Correction', userId:currentUser.uid,userEmail:currentUser.email, panNumber:document.getElementById('corPAN').value.trim().toUpperCase(),
+    firstName:document.getElementById('corFirstName').value.trim(),middleName:document.getElementById('corMiddleName').value.trim(),lastName:document.getElementById('corLastName').value.trim(),name,
+    father:document.getElementById('corFatherName').value.trim(),mother:document.getElementById('corMotherName').value.trim(),aadhaar:document.getElementById('corAadhaar').value.trim(),dob:document.getElementById('corDob').value,gender:document.getElementById('corGender').value,phone:document.getElementById('corPhone').value.trim(),email:document.getElementById('corEmail').value.trim(),
+    flatNo:document.getElementById('corFlat').value.trim(),villageCity:document.getElementById('corVillage').value.trim(),postOffice:document.getElementById('corPost').value.trim(),subDivision:document.getElementById('corSubDivision').value.trim(),district:document.getElementById('corDistrict').value.trim(),state:document.getElementById('corState').value.trim(),pinCode:document.getElementById('corPin').value.trim(),
+    correctionFields:selectedCorrections(),otherCorrection:document.getElementById('corOtherValue')?.value.trim()||'',status:'pending',paymentStatus:'pending',paymentAmount:190,createdAt:new Date()
+  };
+}
+async function submitCorrectionApplication(){
+  if(!validateCorrectionStep())return;
+  if(!currentUser)return;
+  const files=['corPhoto','corSignature','corAadhaarFront','corAadhaarBack','corDobProof'].map(id=>document.getElementById(id)?.files?.[0]);
+  if(files.some(f=>!f)){showToast('Correction ke liye New PAN jaise same 5 documents required hain','error');correctionStepIndex=4;renderCorrectionSteps();return;}
+  const loading=document.getElementById('loadingOverlay'); const btn=document.getElementById('corSubmitBtn');
+  try{
+    loading.style.display='flex';btn.disabled=true;btn.textContent='Processing...';
+    const [photo,signature,aadhaarFront,aadhaarBack,dobProof]=await Promise.all(files.map(uploadToCloudinary));
+    const data=buildCorrectionData(); Object.assign(data,{photo,signature,aadhaarFront,aadhaarBack,dobProof,documentsSameAsNewPAN:true});
+    const ref=await db.collection('applications').add(data);
+    data.id=ref.id; generatePDF(data);
+    clearCorrectionDraft(); resetCorrectionFormAfterSubmit();
+    showToast('PAN Correction submitted — form reset ho gaya');
+    setTimeout(()=>openCustomerPaymentByAck(data.ackNo),1000);
+  }catch(err){showToast('Correction error: '+(err.message||err),'error');}
+  finally{loading.style.display='none';btn.disabled=false;btn.textContent='Submit Correction';}
+}
+function resetCorrectionFormAfterSubmit(){
+  clearTimeout(correctionDraftTimer); const form=document.getElementById('correctionForm'); if(!form)return; form.reset(); form.querySelectorAll('input[type=file]').forEach(el=>el.value=''); document.getElementById('correctionDynamicFields').innerHTML='<div class="empty-correction">No correction selected yet.</div>'; document.getElementById('correctionNormalSummary').textContent='Basic details yahan show honge.'; correctionStepIndex=0; renderCorrectionSteps(); clearCorrectionDraft();
+}
+
+document.getElementById('correctionForm')?.addEventListener('submit',e=>{e.preventDefault();submitCorrectionApplication();});
+document.getElementById('corNextBtn')?.addEventListener('click',goCorrectionNext);
+document.getElementById('corPrevBtn')?.addEventListener('click',goCorrectionPrev);
+document.querySelectorAll('#correctionScreen input[type="checkbox"]').forEach(cb=>cb.addEventListener('change',()=>{renderCorrectionDynamicFields();scheduleCorrectionDraft();}));
+document.getElementById('corPAN')?.addEventListener('input',e=>{e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,10); if(!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(e.target.value))e.target.setCustomValidity('PAN must be 5 letters + 4 digits + 1 letter');else e.target.setCustomValidity('');updateCorrectionPreview();scheduleCorrectionDraft();});
+document.querySelectorAll('#correctionScreen input,#correctionScreen select,#correctionScreen textarea').forEach(el=>{el.addEventListener('input',()=>{updateCorrectionPreview();updateCorrectionSummary();scheduleCorrectionDraft();});el.addEventListener('change',()=>{updateCorrectionPreview();updateCorrectionSummary();scheduleCorrectionDraft();});});
 
 function generateAck() {
   const date = new Date();
@@ -1315,7 +1510,7 @@ async function openCustomerPaymentByAck(ack){
     let requestId=app.customerPaymentRequestId;
     if(!requestId){
       const ref=db.collection('customerPaymentRequests').doc();
-      await ref.set({applicationId:app.id,ackNo:app.ackNo,name:getCustomerName(app),phone:app.phone||'',email:app.email||'',amount:Number(app.paymentAmount||190),utrMode:'required',utrRequired:true,showUtrAfterDone:true,status:'pending',paymentStatus:'pending',createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+      await ref.set({applicationId:app.id,ackNo:app.ackNo,name:getCustomerName(app),phone:app.phone||'',email:app.email||'',photo:getCustomerPhoto(app),applicationType:getApplicationType(app),amount:Number(app.paymentAmount||190),utrMode:'required',utrRequired:true,showUtrAfterDone:true,status:'pending',paymentStatus:'pending',createdAt:firebase.firestore.FieldValue.serverTimestamp()});
       requestId=ref.id;
       await app.ref.update({customerPaymentRequestId:requestId,customerPaymentAmount:Number(app.paymentAmount||190),customerPaymentStatus:'pending'});
     }
@@ -1329,6 +1524,26 @@ function getCustomerPaymentUrl(requestId){
 
 function getCustomerName(data){
   return String(data?.name || [data?.firstName,data?.middleName,data?.lastName].filter(Boolean).join(' ') || 'Customer').trim();
+}
+
+function getApplicationType(data){
+  return String(data?.applicationType || data?.serviceType || 'New PAN').trim() || 'New PAN';
+}
+function getCustomerPhoto(data){
+  return String(data?.photo || data?.photoUrl || data?.photoURL || '').trim();
+}
+function normalizeWhatsAppNumber(phone){
+  let n=String(phone||'').replace(/\D/g,'');
+  if(n.length===10) n='91'+n;
+  if(n.startsWith('0') && n.length===11) n='91'+n.slice(1);
+  return n;
+}
+function buildCustomerPaymentWhatsAppText(data, link){
+  const name=getCustomerName(data);
+  const ack=String(data?.ackNo||'—');
+  const type=getApplicationType(data);
+  const amount=Number(data?.amount||0).toLocaleString('en-IN');
+  return `Dear ${name},\n\nYour ${type} payment is pending. Please complete your payment to continue the PAN card process.\n\nCustomer: ${name}\nApplication: ${type}\nPAN ACK: ${ack}\nAmount: ₹${amount}\n\nClick here to complete your payment:\n${link}\n\nThank you,\nTECH SOURCE`;
 }
 
 async function loadCustomerPaymentPage(){
@@ -1354,7 +1569,7 @@ async function loadCustomerPaymentPage(){
       if(snap.empty) throw new Error('Payment request not found.');
       const app={id:snap.docs[0].id,...snap.docs[0].data()};
       if(app.paymentStatus==='paid') throw new Error('This PAN payment is already completed.');
-      requestData={id:'',ackNo:app.ackNo,name:getCustomerName(app),phone:app.phone||'',email:app.email||'',amount:Number(app.paymentAmount||190),utrRequired:true,status:'pending',applicationId:app.id};
+      requestData={id:'',ackNo:app.ackNo,name:getCustomerName(app),phone:app.phone||'',email:app.email||'',photo:getCustomerPhoto(app),applicationType:getApplicationType(app),amount:Number(app.paymentAmount||190),utrRequired:true,status:'pending',applicationId:app.id};
     }
 
     customerPaymentContext={...requestData,ref:requestRef};
@@ -1362,7 +1577,12 @@ async function loadCustomerPaymentPage(){
     document.getElementById('cpPhone').textContent=requestData.phone || '—';
     document.getElementById('cpEmail').textContent=requestData.email || '—';
     document.getElementById('cpAck').textContent=requestData.ackNo || '—';
+    document.getElementById('cpApplicationType').textContent=getApplicationType(requestData);
     document.getElementById('cpAmount').textContent=Number(requestData.amount||0).toLocaleString('en-IN');
+    const cpPhoto=document.getElementById('cpPhoto');
+    const photoUrl=getCustomerPhoto(requestData);
+    cpPhoto.src=photoUrl || '';
+    cpPhoto.parentElement.hidden=!photoUrl;
     document.getElementById('cpUpi').textContent=CUSTOMER_UPI_ID;
 
     const title=document.getElementById('cpTitle');
@@ -1408,6 +1628,14 @@ async function loadCustomerPaymentPage(){
     document.getElementById('cpStatus').style.color='#dc2626';
     return true;
   }
+}
+
+function showPaymentReceivedAnimation(){
+  const overlay=document.getElementById('paymentAnimationOverlay'); if(!overlay)return;
+  overlay.hidden=false; overlay.classList.add('show');
+  const title=document.getElementById('paymentAnimationTitle'); const text=document.getElementById('paymentAnimationText');
+  if(title)title.textContent='Payment Received ✓'; if(text)text.textContent='Payment request successfully sent. Verification is pending with TECH SOURCE.';
+  setTimeout(()=>{overlay.classList.remove('show');setTimeout(()=>overlay.hidden=true,300);},2600);
 }
 
 async function customerPaymentDone(){
@@ -1480,7 +1708,8 @@ async function previewCustomerPaymentApplication(){
     const snap=await db.collection('applications').where('ackNo','==',ack).limit(1).get();
     if(snap.empty){box.textContent='ACK not found.';return;}
     const d=snap.docs[0].data();
-    box.innerHTML=`<strong>${escapeHtml(getCustomerName(d))}</strong><br>Mobile: ${escapeHtml(d.phone||'—')} &nbsp;•&nbsp; Email: ${escapeHtml(d.email||'—')}<br>Payment status: ${escapeHtml(d.paymentStatus||'pending')}`;
+    const photo=getCustomerPhoto(d);
+    box.innerHTML=`${photo?`<img class=\"customer-preview-photo\" src=\"${escapeHtml(photo)}\" alt=\"Customer Photo\">`:''}<strong>${escapeHtml(getCustomerName(d))}</strong><br>Mobile: ${escapeHtml(d.phone||'—')} &nbsp;•&nbsp; Email: ${escapeHtml(d.email||'—')}<br>Application: ${escapeHtml(getApplicationType(d))}<br>Payment status: ${escapeHtml(d.paymentStatus||'pending')}`;
   }catch(e){box.textContent='Could not load: '+(e.message||e);}
 }
 
@@ -1498,7 +1727,7 @@ async function createCustomerPaymentLink(){
     const appDoc=snap.docs[0]; const app=appDoc.data();
     const ref=db.collection('customerPaymentRequests').doc();
     await ref.set({
-      applicationId:appDoc.id, ackNo:app.ackNo, name:getCustomerName(app), phone:app.phone||'', email:app.email||'',
+      applicationId:appDoc.id, ackNo:app.ackNo, name:getCustomerName(app), phone:app.phone||'', email:app.email||'', photo:getCustomerPhoto(app), applicationType:getApplicationType(app),
       amount:Math.round(amount), utrMode, utrRequired:utrMode==='required', showUtrAfterDone:true,
       status:'pending', paymentStatus:'pending', createdAt:firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -1521,6 +1750,19 @@ function shareCustomerPaymentLink(){
   const text='Dear Customer, your PAN card payment is pending. Please complete your payment to continue the PAN card process.\n\nPayment Link: '+link;
   if(navigator.share) navigator.share({title:'TECH SOURCE PAN Payment',text}).catch(()=>{});
   else window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank');
+}
+
+async function sendCustomerPaymentWhatsApp(){
+  const link=document.getElementById('customerPayLink').value; if(!link)return;
+  const ack=document.getElementById('customerPayAck').value.trim().toUpperCase();
+  try{
+    const app=await findApplicationByAck(ack);
+    if(!app){showToast('Customer not found','error');return;}
+    const number=normalizeWhatsAppNumber(app.phone);
+    if(!number || number.length<12){showToast('Customer WhatsApp number not available','error');return;}
+    const text=buildCustomerPaymentWhatsAppText({...app,amount:Number(document.getElementById('customerPayAmount').value||190)},link);
+    window.open('https://wa.me/'+number+'?text='+encodeURIComponent(text),'_blank','noopener');
+  }catch(e){showToast('WhatsApp error: '+(e.message||e),'error');}
 }
 
 function updateAadhaarName() {
@@ -1641,14 +1883,16 @@ loadCustomerPaymentPage();
 
 document.getElementById("nextStepBtn").addEventListener("click", goNextStep);
 document.getElementById("prevStepBtn").addEventListener("click", goPrevStep);
+document.querySelectorAll('#newpanForm input,#newpanForm select,#newpanForm textarea').forEach(el=>{el.addEventListener('input',updateNewPanPreview);el.addEventListener('change',updateNewPanPreview);});
 renderSteps();
+updateNewPanPreview();
 
 /* ================= GEMINI AI COPILOT =================
    Gemini 3.6 Flash + Interactions API
    Replace only the placeholder below with your Gemini API key.
    Do NOT paste your key into chat.
 */
-const GEMINI_API_KEY = "PASTE_YOUR_GEMINI_API_KEY_HERE";
+const GEMINI_API_KEY = "AQ.Ab8RN6KiG5rUJcTA_72AMciaM03nK-BFlM2ZDuqsDKSp_aOxQg";
 const GEMINI_MODEL = "gemini-3.6-flash";
 const GEMINI_INTERACTIONS_URL = "https://generativelanguage.googleapis.com/v1beta/interactions";
 let geminiBusy = false;
