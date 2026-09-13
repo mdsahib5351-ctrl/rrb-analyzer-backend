@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" href="https://i.ibb.co/TBzgsbMS/TS-logo-with-vibrant-gradients.jpg" type="image/jpeg">
   <title>TECH SOURCE - PAN Service</title>
-  <link rel="stylesheet" href="pan-service.css">
+  <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
 
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
@@ -13,7 +13,8 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="pan-service.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="script.js" defer></script>
 </head>
 <body>
   <header class="page-header">
@@ -359,41 +360,44 @@
         <div class="form-grid">
           <div class="form-group">
             <label for="photo">Photo</label>
-            <input type="file" id="photo" required>
+            <input type="file" id="photo" accept="image/*,application/pdf" required>
           </div>
           <div class="form-group">
             <label for="signature">Signature</label>
-            <input type="file" id="signature" required>
+            <input type="file" id="signature" accept="image/*,application/pdf" required>
           </div>
           <div class="form-group">
             <label for="aadhaarFront">Aadhaar Card Front</label>
-            <input type="file" id="aadhaarFront" required>
+            <input type="file" id="aadhaarFront" accept="image/*,application/pdf" required>
           </div>
           <div class="form-group">
             <label for="aadhaarBack">Aadhaar Card Back</label>
-            <input type="file" id="aadhaarBack" required>
+            <input type="file" id="aadhaarBack" accept="image/*,application/pdf" required>
           </div>
           <div class="form-group">
             <label for="dobProof">DOB Proof Certificate</label>
-            <input type="file" id="dobProof" required>
+            <input type="file" id="dobProof" accept="image/*,application/pdf" required>
           </div>
           <div id="gFrontBox" class="form-group hidden-section">
             <label for="guardianAadhaarFront">Guardian Aadhaar Front</label>
-            <input type="file" id="guardianAadhaarFront">
+            <input type="file" id="guardianAadhaarFront" accept="image/*,application/pdf">
           </div>
           <div id="gBackBox" class="form-group hidden-section">
             <label for="guardianAadhaarBack">Guardian Aadhaar Back</label>
-            <input type="file" id="guardianAadhaarBack">
+            <input type="file" id="guardianAadhaarBack" accept="image/*,application/pdf">
           </div>
         </div>
-      <div class="pan-preview-box">
+      </section>
+
+      <section class="form-section" data-step="review">
+        <div class="review-final-head"><span class="eyebrow">FINAL PREVIEW</span><h3>Application Review & Dummy PAN Card</h3><p>Submit se pehle details aur dummy PAN preview check karein.</p></div>
+        <div id="newPanFinalPreview" class="pan-preview-box final-preview-box">
         <div class="preview-head"><div><span class="eyebrow">LIVE PREVIEW</span><h3>PAN Card Preview</h3></div><span class="preview-chip">New PAN</span></div>
         <div class="dummy-pan-card">
           <div class="dummy-pan-top"><strong>INCOME TAX DEPARTMENT</strong><span>GOVT. OF INDIA</span></div>
           <div class="dummy-pan-body"><div class="dummy-photo"><img id="newPanPreviewPhoto" src="" alt="Photo"></div><div class="dummy-pan-info"><div><small>Name</small><strong id="newPanPreviewName">YOUR NAME</strong></div><div><small>Father's Name</small><strong id="newPanPreviewFather">FATHER NAME</strong></div><div class="dummy-pan-row"><div><small>DOB</small><strong id="newPanPreviewDob">DD/MM/YYYY</strong></div><div><small>PAN</small><strong id="newPanPreviewNumber">XXXX</strong></div></div></div></div>
         </div>
-      </div>
-
+        <div class="final-review-note"><i class="fa fa-shield-halved"></i> Documents crop/skip ke baad final submit par hi Cloudinary upload honge.</div>
       </section>
 
       <div class="form-footer">
@@ -473,17 +477,19 @@
         <h3>Documents — Same as New PAN</h3>
         <p class="section-help">Correction me bhi New PAN ke exactly same documents required hain.</p>
         <div class="form-grid">
-          <div class="form-group"><label for="corPhoto">Photo*</label><input id="corPhoto" type="file" accept="image/*" required></div>
-          <div class="form-group"><label for="corSignature">Signature*</label><input id="corSignature" type="file" accept="image/*" required></div>
-          <div class="form-group"><label for="corAadhaarFront">Aadhaar Card Front*</label><input id="corAadhaarFront" type="file" required></div>
-          <div class="form-group"><label for="corAadhaarBack">Aadhaar Card Back*</label><input id="corAadhaarBack" type="file" required></div>
-          <div class="form-group"><label for="corDobProof">DOB Proof Certificate*</label><input id="corDobProof" type="file" required></div>
+          <div class="form-group"><label for="corPhoto">Photo*</label><input id="corPhoto" type="file" accept="image/*,application/pdf" required></div>
+          <div class="form-group"><label for="corSignature">Signature*</label><input id="corSignature" type="file" accept="image/*,application/pdf" required></div>
+          <div class="form-group"><label for="corAadhaarFront">Aadhaar Card Front*</label><input id="corAadhaarFront" type="file" accept="image/*,application/pdf" required></div>
+          <div class="form-group"><label for="corAadhaarBack">Aadhaar Card Back*</label><input id="corAadhaarBack" type="file" accept="image/*,application/pdf" required></div>
+          <div class="form-group"><label for="corDobProof">DOB Proof Certificate*</label><input id="corDobProof" type="file" accept="image/*,application/pdf" required></div>
         </div>
-        <div class="pan-preview-box correction-preview-box"><div class="preview-head"><div><span class="eyebrow">LIVE PREVIEW</span><h3>PAN Card Preview</h3></div><span class="preview-chip correction-chip">Correction</span></div><div class="dummy-pan-card"><div class="dummy-pan-top"><strong>INCOME TAX DEPARTMENT</strong><span>GOVT. OF INDIA</span></div><div class="dummy-pan-body"><div class="dummy-photo"><img id="corPreviewPhoto" src="" alt="Photo"></div><div class="dummy-pan-info"><div><small>Name</small><strong id="corPreviewName">YOUR NAME</strong></div><div><small>Father's Name</small><strong id="corPreviewFather">FATHER NAME</strong></div><div class="dummy-pan-row"><div><small>DOB</small><strong id="corPreviewDob">DD/MM/YYYY</strong></div><div><small>PAN</small><strong id="corPreviewPan">ABCDE1234F</strong></div></div></div></div></div></div>
       </section>
 
       <section class="form-section correction-section" data-cstep="review">
-        <h3>Review & Submit</h3><div id="correctionReview" class="correction-review"></div><div class="submit-warning"><i class="fa fa-circle-info"></i> Submit karne ke baad application final ho jayegi aur payment request open hogi.</div>
+        <h3>Review & Submit</h3>
+        <div id="correctionReview" class="correction-review"></div>
+        <div class="correction-final-preview-wrap"><div class="pan-preview-box correction-preview-box"><div class="preview-head"><div><span class="eyebrow">FINAL PREVIEW</span><h3>Dummy PAN Card</h3></div><span class="preview-chip correction-chip">Correction</span></div><div class="dummy-pan-card"><div class="dummy-pan-top"><strong>INCOME TAX DEPARTMENT</strong><span>GOVT. OF INDIA</span></div><div class="dummy-pan-body"><div class="dummy-photo"><img id="corPreviewPhoto" src="" alt="Photo"></div><div class="dummy-pan-info"><div><small>Name</small><strong id="corPreviewName">YOUR NAME</strong></div><div><small>Father's Name</small><strong id="corPreviewFather">FATHER NAME</strong></div><div class="dummy-pan-row"><div><small>DOB</small><strong id="corPreviewDob">DD/MM/YYYY</strong></div><div><small>PAN</small><strong id="corPreviewPan">ABCDE1234F</strong></div></div></div></div></div></div>
+        <div class="submit-warning"><i class="fa fa-circle-info"></i> Submit ke baad documents Cloudinary par upload honge aur payment request open hogi.</div>
       </section>
 
       <div class="form-footer"><div class="notes"><p><span id="corStepProgress">Step 1 of 6</span>. PAN format: 5 letters + 4 digits + 1 letter.</p></div><div class="form-actions"><button class="btn ghost" type="button" id="corPrevBtn">Back</button><button class="btn" type="button" id="corNextBtn">Next</button><button class="btn" type="submit" id="corSubmitBtn" style="display:none">Submit Correction</button></div></div>
@@ -600,6 +606,15 @@
       <div class="history-grid" id="historyGrid">
         <div class="empty-history">Login karne ke baad history yahan show hogi.</div>
       </div>
+    </div>
+  </div>
+
+  <div id="documentCropModal" class="doc-crop-modal" aria-hidden="true">
+    <div class="doc-crop-card">
+      <div class="doc-crop-head"><div><span class="eyebrow">DOCUMENT EDITOR</span><h3 id="cropDocTitle">Crop Document</h3><p>2 finger = zoom • 1 finger outside crop = move image • inside crop = move box</p></div><button type="button" class="icon-button close-dark" id="cropCloseBtn"><i class="fa fa-times"></i></button></div>
+      <div class="crop-stage" id="cropStage"><canvas id="cropCanvas"></canvas><div id="cropShade"></div><div id="cropBox"><i data-h="nw"></i><i data-h="n"></i><i data-h="ne"></i><i data-h="e"></i><i data-h="se"></i><i data-h="s"></i><i data-h="sw"></i><i data-h="w"></i></div></div>
+      <div class="crop-toolbar"><button type="button" class="mini-btn" id="cropFitBtn"><i class="fa fa-expand"></i> Fit</button><button type="button" class="mini-btn" id="cropRotateBtn"><i class="fa fa-rotate"></i> Rotate</button><button type="button" class="mini-btn" id="cropResetBtn"><i class="fa fa-rotate-left"></i> Reset</button><span id="cropFileName" class="crop-file-name"></span></div>
+      <div class="crop-actions"><button type="button" class="btn ghost" id="cropSkipBtn">Skip Crop</button><button type="button" class="btn" id="cropConfirmBtn"><i class="fa fa-check"></i> Crop & Use</button></div>
     </div>
   </div>
 
