@@ -191,7 +191,7 @@
         <div class="form-grid">
           <div class="form-group">
             <label for="lastName">Last Name*</label>
-            <input type="text" id="lastName" required>
+            <input type="text" id="lastName">
           </div>
           <div class="form-group">
             <label for="firstName">First Name</label>
@@ -203,19 +203,19 @@
           </div>
           <div class="form-group">
             <label for="aadhar">Aadhaar Number</label>
-            <input type="text" id="aadhar" maxlength="12" inputmode="numeric" required>
+            <input type="text" id="aadhar" maxlength="12" inputmode="numeric">
           </div>
           <div class="form-group">
             <label for="nameAadhar">Name as per Aadhaar</label>
-            <input type="text" id="nameAadhar" required readonly>
+            <input type="text" id="nameAadhar" readonly>
           </div>
           <div class="form-group">
             <label for="dob">Date of Birth</label>
-            <input type="date" id="dob" required onchange="checkAge()">
+            <input type="date" id="dob" onchange="checkAge()">
           </div>
           <div class="form-group">
             <label for="gender">Gender</label>
-            <select id="gender" required>
+            <select id="gender">
               <option value="">Select</option>
               <option>Male</option>
               <option>Female</option>
@@ -229,11 +229,11 @@
         <div class="form-grid">
           <div class="form-group">
             <label for="phone">Phone</label>
-            <input type="tel" id="phone" required>
+            <input type="tel" id="phone">
           </div>
           <div class="form-group">
             <label for="email">Email</label>
-            <input type="email" id="email" required>
+            <input type="email" id="email">
           </div>
         </div>
       </section>
@@ -242,8 +242,8 @@
         <h3>Parents Details</h3>
         <div class="form-grid">
           <div class="form-group">
-            <label for="fatherlastName">Father's Last Name*</label>
-            <input type="text" id="fatherlastName" required>
+            <label for="fatherlastName">Father's Last Name <span class="required-star">*</span></label>
+            <input type="text" id="fatherlastName">
           </div>
           <div class="form-group">
             <label for="fatherFirstName">Father's First Name</label>
@@ -254,8 +254,8 @@
             <input type="text" id="fatherMiddleName">
           </div>
           <div class="form-group">
-            <label for="motherlastName">Mother's Last Name*</label>
-            <input type="text" id="motherlastName" required>
+            <label for="motherlastName">Mother's Last Name <span class="required-star">*</span></label>
+            <input type="text" id="motherlastName">
           </div>
           <div class="form-group">
             <label for="motherfirstName">Mother's First Name</label>
@@ -272,7 +272,7 @@
         <h3>Guardian Details</h3>
         <div class="form-grid" id="guardianFields">
           <div class="form-group">
-            <label for="guardianlastName">Guardian Last Name*</label>
+            <label for="guardianlastName">Guardian Last Name <span class="required-star">*</span></label>
             <input type="text" id="guardianlastName">
           </div>
           <div class="form-group">
@@ -291,15 +291,15 @@
         <div class="form-grid">
           <div class="form-group">
             <label for="pinCode">Pin Code</label>
-            <input type="text" id="pinCode" maxlength="6" pattern="[0-9]{6}" required oninput="fetchAddress()">
+            <input type="text" id="pinCode" maxlength="6" pattern="[0-9]{6}" oninput="fetchAddress()">
           </div>
           <div class="form-group">
             <label for="flatNo">Flat No/C/O</label>
-            <input type="text" id="flatNo" required>
+            <input type="text" id="flatNo">
           </div>
           <div class="form-group">
             <label for="villageCity">Village/City</label>
-            <input type="text" id="villageCity" required>
+            <input type="text" id="villageCity">
           </div>
           <div class="form-group">
             <label for="postOffice">Post Office</label>
@@ -310,15 +310,15 @@
           </div>
           <div class="form-group">
             <label for="subDivision">Sub Division</label>
-            <input type="text" id="subDivision" required>
+            <input type="text" id="subDivision">
           </div>
           <div class="form-group">
             <label for="district">District</label>
-            <input type="text" id="district" required>
+            <input type="text" id="district">
           </div>
           <div class="form-group">
             <label for="state">State</label>
-            <input type="text" id="state" required>
+            <input type="text" id="state">
           </div>
         </div>
       </section>
@@ -328,19 +328,19 @@
         <div class="form-grid">
           <div class="form-group">
             <label for="proofOfIdentity">Proof of Identity</label>
-            <select id="proofOfIdentity" required>
+            <select id="proofOfIdentity">
               <option value="A1">Aadhaar Card</option>
             </select>
           </div>
           <div class="form-group">
             <label for="proofOfAddress">Proof of Address</label>
-            <select id="proofOfAddress" required>
+            <select id="proofOfAddress">
               <option value="A2">Aadhaar Card</option>
             </select>
           </div>
           <div class="form-group wide-field">
             <label for="proof_dob">Proof of Birth</label>
-            <select id="proof_dob" name="proof_dob" required>
+            <select id="proof_dob" name="proof_dob">
               <option value="">--- Select DOB/DOI Proof ---</option>
               <option value="Affidavit sworn before Magistrate stating Date of Birth (In Copy)">Affidavit sworn before Magistrate stating Date of Birth (In Copy)</option>
               <option value="Birth Certificate issued by Municipal Authority or any office authorized to issue Birth & Death Certificate by Registrar of Birth and Deaths or the Indian Consulate (In Copy)" selected>Birth Certificate issued by Municipal Authority or authorized office (In Copy)</option>
@@ -360,31 +360,31 @@
         <div class="form-grid">
           <div class="form-group">
             <label for="photo">Photo</label>
-            <input type="file" id="photo" accept="image/*,application/pdf" required>
+            <input type="file" id="photo" accept="image/jpeg,image/png,image/webp"><div class="doc-upload-state" id="uploadState_photo" aria-live="polite"></div>
           </div>
           <div class="form-group">
             <label for="signature">Signature</label>
-            <input type="file" id="signature" accept="image/*,application/pdf" required>
+            <input type="file" id="signature" accept="image/jpeg,image/png,image/webp"><div class="doc-upload-state" id="uploadState_signature" aria-live="polite"></div>
           </div>
           <div class="form-group">
             <label for="aadhaarFront">Aadhaar Card Front</label>
-            <input type="file" id="aadhaarFront" accept="image/*,application/pdf" required>
+            <input type="file" id="aadhaarFront" accept="image/jpeg,image/png,image/webp"><div class="doc-upload-state" id="uploadState_aadhaarFront" aria-live="polite"></div>
           </div>
           <div class="form-group">
             <label for="aadhaarBack">Aadhaar Card Back</label>
-            <input type="file" id="aadhaarBack" accept="image/*,application/pdf" required>
+            <input type="file" id="aadhaarBack" accept="image/jpeg,image/png,image/webp"><div class="doc-upload-state" id="uploadState_aadhaarBack" aria-live="polite"></div>
           </div>
           <div class="form-group">
             <label for="dobProof">DOB Proof Certificate</label>
-            <input type="file" id="dobProof" accept="image/*,application/pdf" required>
+            <input type="file" id="dobProof" accept="image/jpeg,image/png,image/webp"><div class="doc-upload-state" id="uploadState_dobProof" aria-live="polite"></div>
           </div>
           <div id="gFrontBox" class="form-group hidden-section">
             <label for="guardianAadhaarFront">Guardian Aadhaar Front</label>
-            <input type="file" id="guardianAadhaarFront" accept="image/*,application/pdf">
+            <input type="file" id="guardianAadhaarFront" accept="image/jpeg,image/png,image/webp"><div class="doc-upload-state" id="uploadState_guardianAadhaarFront" aria-live="polite"></div>
           </div>
           <div id="gBackBox" class="form-group hidden-section">
             <label for="guardianAadhaarBack">Guardian Aadhaar Back</label>
-            <input type="file" id="guardianAadhaarBack" accept="image/*,application/pdf">
+            <input type="file" id="guardianAadhaarBack" accept="image/jpeg,image/png,image/webp"><div class="doc-upload-state" id="uploadState_guardianAadhaarBack" aria-live="polite"></div>
           </div>
         </div>
       </section>
@@ -397,7 +397,7 @@
           <div class="dummy-pan-top"><strong>INCOME TAX DEPARTMENT</strong><span>GOVT. OF INDIA</span></div>
           <div class="dummy-pan-body"><div class="dummy-photo"><img id="newPanPreviewPhoto" src="" alt="Photo"></div><div class="dummy-pan-info"><div><small>Name</small><strong id="newPanPreviewName">YOUR NAME</strong></div><div><small>Father's Name</small><strong id="newPanPreviewFather">FATHER NAME</strong></div><div class="dummy-pan-row"><div><small>DOB</small><strong id="newPanPreviewDob">DD/MM/YYYY</strong></div><div><small>PAN</small><strong id="newPanPreviewNumber">XXXX</strong></div></div></div></div>
         </div>
-        <div class="final-review-note"><i class="fa fa-shield-halved"></i> Har document Crop & Upload karte hi Cloudinary par upload hota hai. Sab upload complete hone ke baad Final Submit active hota hai.</div>
+        <div class="final-review-note"><i class="fa fa-shield-halved"></i> Documents crop/skip ke baad final submit par hi Cloudinary upload honge.</div>
       </section>
 
       <div class="form-footer">
@@ -477,11 +477,11 @@
         <h3>Documents — Same as New PAN</h3>
         <p class="section-help">Correction me bhi New PAN ke exactly same documents required hain.</p>
         <div class="form-grid">
-          <div class="form-group"><label for="corPhoto">Photo*</label><input id="corPhoto" type="file" accept="image/*,application/pdf" required></div>
-          <div class="form-group"><label for="corSignature">Signature*</label><input id="corSignature" type="file" accept="image/*,application/pdf" required></div>
-          <div class="form-group"><label for="corAadhaarFront">Aadhaar Card Front*</label><input id="corAadhaarFront" type="file" accept="image/*,application/pdf" required></div>
-          <div class="form-group"><label for="corAadhaarBack">Aadhaar Card Back*</label><input id="corAadhaarBack" type="file" accept="image/*,application/pdf" required></div>
-          <div class="form-group"><label for="corDobProof">DOB Proof Certificate*</label><input id="corDobProof" type="file" accept="image/*,application/pdf" required></div>
+          <div class="form-group"><label for="corPhoto">Photo*</label><input id="corPhoto" type="file" accept="image/jpeg,image/png,image/webp" required></div>
+          <div class="form-group"><label for="corSignature">Signature*</label><input id="corSignature" type="file" accept="image/jpeg,image/png,image/webp" required></div>
+          <div class="form-group"><label for="corAadhaarFront">Aadhaar Card Front*</label><input id="corAadhaarFront" type="file" accept="image/jpeg,image/png,image/webp" required></div>
+          <div class="form-group"><label for="corAadhaarBack">Aadhaar Card Back*</label><input id="corAadhaarBack" type="file" accept="image/jpeg,image/png,image/webp" required></div>
+          <div class="form-group"><label for="corDobProof">DOB Proof Certificate*</label><input id="corDobProof" type="file" accept="image/jpeg,image/png,image/webp" required></div>
         </div>
       </section>
 
@@ -489,7 +489,7 @@
         <h3>Review & Submit</h3>
         <div id="correctionReview" class="correction-review"></div>
         <div class="correction-final-preview-wrap"><div class="pan-preview-box correction-preview-box"><div class="preview-head"><div><span class="eyebrow">FINAL PREVIEW</span><h3>Dummy PAN Card</h3></div><span class="preview-chip correction-chip">Correction</span></div><div class="dummy-pan-card"><div class="dummy-pan-top"><strong>INCOME TAX DEPARTMENT</strong><span>GOVT. OF INDIA</span></div><div class="dummy-pan-body"><div class="dummy-photo"><img id="corPreviewPhoto" src="" alt="Photo"></div><div class="dummy-pan-info"><div><small>Name</small><strong id="corPreviewName">YOUR NAME</strong></div><div><small>Father's Name</small><strong id="corPreviewFather">FATHER NAME</strong></div><div class="dummy-pan-row"><div><small>DOB</small><strong id="corPreviewDob">DD/MM/YYYY</strong></div><div><small>PAN</small><strong id="corPreviewPan">ABCDE1234F</strong></div></div></div></div></div></div>
-        <div class="submit-warning"><i class="fa fa-circle-info"></i> Submit ke baad documents Cloudinary par upload honge aur payment request open hogi.</div>
+        <div class="submit-warning"><i class="fa fa-circle-info"></i> Documents upload hote hi ready ho jayenge. Submit se pehle demo PAN preview dikhega.</div>
       </section>
 
       <div class="form-footer"><div class="notes"><p><span id="corStepProgress">Step 1 of 6</span>. PAN format: 5 letters + 4 digits + 1 letter.</p></div><div class="form-actions"><button class="btn ghost" type="button" id="corPrevBtn">Back</button><button class="btn" type="button" id="corNextBtn">Next</button><button class="btn" type="submit" id="corSubmitBtn" style="display:none">Submit Correction</button></div></div>
@@ -585,7 +585,7 @@
         <button class="icon-button close-dark" type="button" onclick="closeAccountPopup()" aria-label="Close">
           <i class="fa fa-times"></i>
         </button>
-      </div>
+      <button type="button" class="btn logout-profile-btn" onclick="logoutUser()"><i class="fa fa-right-from-bracket"></i> Logout</button></div>
       <div class="profile-summary">
         <img id="profileSummaryPhoto" src="https://ui-avatars.com/api/?name=TS&background=0f766e&color=fff" alt="Profile">
         <div>
@@ -614,7 +614,7 @@
       <div class="doc-crop-head"><div><span class="eyebrow">DOCUMENT EDITOR</span><h3 id="cropDocTitle">Crop Document</h3><p>2 finger = zoom • 1 finger outside crop = move image • inside crop = move box</p></div><button type="button" class="icon-button close-dark" id="cropCloseBtn"><i class="fa fa-times"></i></button></div>
       <div class="crop-stage" id="cropStage"><canvas id="cropCanvas"></canvas><div id="cropShade"></div><div id="cropBox"><i data-h="nw"></i><i data-h="n"></i><i data-h="ne"></i><i data-h="e"></i><i data-h="se"></i><i data-h="s"></i><i data-h="sw"></i><i data-h="w"></i></div></div>
       <div class="crop-toolbar"><button type="button" class="mini-btn" id="cropFitBtn"><i class="fa fa-expand"></i> Fit</button><button type="button" class="mini-btn" id="cropRotateBtn"><i class="fa fa-rotate"></i> Rotate</button><button type="button" class="mini-btn" id="cropResetBtn"><i class="fa fa-rotate-left"></i> Reset</button><span id="cropFileName" class="crop-file-name"></span></div>
-      <div class="crop-actions"><button type="button" class="btn ghost" id="cropSkipBtn">Skip Crop</button><button type="button" class="btn" id="cropConfirmBtn"><i class="fa fa-check"></i> Crop & Upload</button></div>
+      <div class="crop-actions"><button type="button" class="btn ghost" id="cropSkipBtn">Skip Crop</button><button type="button" class="btn" id="cropConfirmBtn"><i class="fa fa-check"></i> Crop & Use</button></div>
     </div>
   </div>
 
@@ -646,7 +646,7 @@
         <div class="direct-pay-summary"><span>Amount</span><strong>₹<b id="directPayAmount">190</b></strong></div>
         <div class="cp-qr-wrap"><div id="directPayQr"></div><small>Scan with any UPI app</small></div>
         <div class="cp-upi">UPI ID: <strong>9661905351-3@axl</strong></div>
-        <div class="form-group"><label for="directPayScreenshot">Payment Screenshot <small>(Optional)</small></label><input id="directPayScreenshot" type="file" accept="image/*"></div>
+        
         <div class="form-group"><label for="directPayUtr">UTR / Transaction ID*</label><input id="directPayUtr" type="text" inputmode="numeric" maxlength="25" placeholder="Enter UTR / Transaction ID"></div>
         <p id="directPayMsg" class="message"></p>
         <div class="popup-actions"><button class="btn ghost" type="button" onclick="closePaymentPopup()">Cancel</button><button id="directPaySubmit" class="btn pay" type="button" onclick="submitDirectPaymentProof()">Payment Done & Submit</button></div>
@@ -698,7 +698,7 @@
       <div class="cp-icon"><i class="fa fa-indian-rupee-sign"></i></div>
       <p class="cp-kicker">PAN CARD PAYMENT</p>
       <h1 id="cpTitle">Payment Pending</h1>
-      <p id="cpMessage" class="cp-message">Dear Customer, your PAN card payment is pending. Please complete your payment to continue the PAN card process.</p>
+      <p id="cpMessage" class="cp-message">Please complete the payment using the exact amount shown below. Your payment request will be sent to admin for verification.</p>
       <div class="cp-customer">
         <div><span>Name</span><strong id="cpName">—</strong></div>
         <div><span>Mobile</span><strong id="cpPhone">—</strong></div>
