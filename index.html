@@ -397,7 +397,7 @@
           <div class="dummy-pan-top"><strong>INCOME TAX DEPARTMENT</strong><span>GOVT. OF INDIA</span></div>
           <div class="dummy-pan-body"><div class="dummy-photo"><img id="newPanPreviewPhoto" src="" alt="Photo"></div><div class="dummy-pan-info"><div><small>Name</small><strong id="newPanPreviewName">YOUR NAME</strong></div><div><small>Father's Name</small><strong id="newPanPreviewFather">FATHER NAME</strong></div><div class="dummy-pan-row"><div><small>DOB</small><strong id="newPanPreviewDob">DD/MM/YYYY</strong></div><div><small>PAN</small><strong id="newPanPreviewNumber">XXXX</strong></div></div></div></div>
         </div>
-        <div class="final-review-note"><i class="fa fa-shield-halved"></i> Documents crop/skip ke baad final submit par hi Cloudinary upload honge.</div>
+        <div class="final-review-note"><i class="fa fa-shield-halved"></i> Har document Crop & Upload karte hi Cloudinary par upload hota hai. Sab upload complete hone ke baad Final Submit active hota hai.</div>
       </section>
 
       <div class="form-footer">
@@ -614,7 +614,7 @@
       <div class="doc-crop-head"><div><span class="eyebrow">DOCUMENT EDITOR</span><h3 id="cropDocTitle">Crop Document</h3><p>2 finger = zoom • 1 finger outside crop = move image • inside crop = move box</p></div><button type="button" class="icon-button close-dark" id="cropCloseBtn"><i class="fa fa-times"></i></button></div>
       <div class="crop-stage" id="cropStage"><canvas id="cropCanvas"></canvas><div id="cropShade"></div><div id="cropBox"><i data-h="nw"></i><i data-h="n"></i><i data-h="ne"></i><i data-h="e"></i><i data-h="se"></i><i data-h="s"></i><i data-h="sw"></i><i data-h="w"></i></div></div>
       <div class="crop-toolbar"><button type="button" class="mini-btn" id="cropFitBtn"><i class="fa fa-expand"></i> Fit</button><button type="button" class="mini-btn" id="cropRotateBtn"><i class="fa fa-rotate"></i> Rotate</button><button type="button" class="mini-btn" id="cropResetBtn"><i class="fa fa-rotate-left"></i> Reset</button><span id="cropFileName" class="crop-file-name"></span></div>
-      <div class="crop-actions"><button type="button" class="btn ghost" id="cropSkipBtn">Skip Crop</button><button type="button" class="btn" id="cropConfirmBtn"><i class="fa fa-check"></i> Crop & Use</button></div>
+      <div class="crop-actions"><button type="button" class="btn ghost" id="cropSkipBtn">Skip Crop</button><button type="button" class="btn" id="cropConfirmBtn"><i class="fa fa-check"></i> Crop & Upload</button></div>
     </div>
   </div>
 
@@ -646,7 +646,7 @@
         <div class="direct-pay-summary"><span>Amount</span><strong>₹<b id="directPayAmount">190</b></strong></div>
         <div class="cp-qr-wrap"><div id="directPayQr"></div><small>Scan with any UPI app</small></div>
         <div class="cp-upi">UPI ID: <strong>9661905351-3@axl</strong></div>
-        <div class="form-group"><label for="directPayScreenshot">Payment Screenshot*</label><input id="directPayScreenshot" type="file" accept="image/*"></div>
+        <div class="form-group"><label for="directPayScreenshot">Payment Screenshot <small>(Optional)</small></label><input id="directPayScreenshot" type="file" accept="image/*"></div>
         <div class="form-group"><label for="directPayUtr">UTR / Transaction ID*</label><input id="directPayUtr" type="text" inputmode="numeric" maxlength="25" placeholder="Enter UTR / Transaction ID"></div>
         <p id="directPayMsg" class="message"></p>
         <div class="popup-actions"><button class="btn ghost" type="button" onclick="closePaymentPopup()">Cancel</button><button id="directPaySubmit" class="btn pay" type="button" onclick="submitDirectPaymentProof()">Payment Done & Submit</button></div>

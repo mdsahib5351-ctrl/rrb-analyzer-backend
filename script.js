@@ -125,6 +125,7 @@ function renderSteps() {
   prevBtn.style.display = currentStepIndex === 0 ? "none" : "inline-flex";
   nextBtn.style.display = currentStepIndex === steps.length - 1 ? "none" : "inline-flex";
   submitBtn.style.display = currentStepIndex === steps.length - 1 ? "inline-flex" : "none";
+  updateSubmitAvailability();
 }
 
 function validateCurrentStep() {
@@ -457,6 +458,7 @@ function resetFormFieldsBySelector(selector) {
 
 function resetNewPanFormAfterSubmit() {
   clearTimeout(draftSaveTimer);
+  resetUploadedDocuments();
   const form = document.getElementById("newpanForm");
   if (!form) return;
   form.reset();
@@ -766,7 +768,7 @@ function resizeBox(h,dx,dy){const b=cropState.box,min=60;let x=b.x,y=b.y,w=b.w,h
 function rotateCrop(){cropState.rot=(cropState.rot+90)%360;drawCrop()}
 async function confirmCrop(skip=false){const id=cropState.id,file=cropState.file;if(skip){croppedFiles[id]=file;updateDocCard(id,file,false);closeCrop();return}const st=cropEl('cropStage'),b=cropState.box;const out=document.createElement('canvas');const sx=(b.x-cropState.ox)/cropState.scale,sy=(b.y-cropState.oy)/cropState.scale,sw=b.w/cropState.scale,sh=b.h/cropState.scale;const src=cropState.img;out.width=Math.max(1,Math.round(sw));out.height=Math.max(1,Math.round(sh));const ctx=out.getContext('2d');ctx.save();if(cropState.rot){ctx.translate(out.width/2,out.height/2);ctx.rotate(-cropState.rot*Math.PI/180);ctx.drawImage(src,-sw/2,-sh/2,sw,sh)}else ctx.drawImage(src,sx,sy,sw,sh,0,0,out.width,out.height);ctx.restore();const blob=await new Promise(r=>out.toBlob(r,'image/jpeg',.92));const cf=new File([blob],(file.name.replace(/\.[^.]+$/,'')||id)+'.jpg',{type:'image/jpeg'});croppedFiles[id]=cf;updateDocCard(id,cf,true);closeCrop()}
 function updateDocCard(id,file,cropped){const input=cropEl(id);if(!input)return;let card=input.parentElement.querySelector('.doc-upload-state');if(!card){card=document.createElement('div');card.className='doc-upload-state';input.parentElement.appendChild(card)}card.innerHTML=`<span>${cropped?'✓ Cropped':'✓ Ready'}</span><button type="button" data-recrop="${id}">Re-crop</button><button type="button" data-replace="${id}">Replace</button>`;card.querySelector('[data-recrop]')?.addEventListener('click',()=>openCropForFile(id,croppedFiles[id]||input.files[0]));card.querySelector('[data-replace]')?.addEventListener('click',()=>{input.value='';input.click()})}
-function initUniversalCropper(){cropIds.forEach(id=>{const input=cropEl(id);if(!input)return;input.addEventListener('change',()=>{const f=input.files?.[0];if(f)openCropForFile(id,f)})});const st=cropEl('cropStage');st.addEventListener('pointerdown',cropStart);st.addEventListener('pointermove',cropMove);st.addEventListener('pointerup',cropEnd);st.addEventListener('pointercancel',cropEnd);st.addEventListener('touchstart',cropStart,{passive:false});st.addEventListener('touchmove',cropMove,{passive:false});st.addEventListener('touchend',cropEnd);cropEl('cropCloseBtn').onclick=closeCrop;cropEl('cropFitBtn').onclick=fitCrop;cropEl('cropRotateBtn').onclick=rotateCrop;cropEl('cropResetBtn').onclick=fitCrop;cropEl('cropSkipBtn').onclick=()=>confirmCrop(true);cropEl('cropConfirmBtn').onclick=()=>confirmCrop(false)}
+function initUniversalCropper(){cropIds.forEach(id=>{const input=cropEl(id);if(!input)return;input.addEventListener('change',()=>{const f=input.files?.[0];if(f){delete uploadedDocUrls[id];delete croppedFiles[id];updateSubmitAvailability();openCropForFile(id,f)}})});const st=cropEl('cropStage');st.addEventListener('pointerdown',cropStart);st.addEventListener('pointermove',cropMove);st.addEventListener('pointerup',cropEnd);st.addEventListener('pointercancel',cropEnd);st.addEventListener('touchstart',cropStart,{passive:false});st.addEventListener('touchmove',cropMove,{passive:false});st.addEventListener('touchend',cropEnd);cropEl('cropCloseBtn').onclick=closeCrop;cropEl('cropFitBtn').onclick=fitCrop;cropEl('cropRotateBtn').onclick=rotateCrop;cropEl('cropResetBtn').onclick=fitCrop;cropEl('cropSkipBtn').onclick=()=>confirmCrop(true);cropEl('cropConfirmBtn').onclick=()=>confirmCrop(false)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initUniversalCropper);else initUniversalCropper();
 
 async function uploadToCloudinary(file) {
@@ -797,145 +799,154 @@ async function uploadToCloudinary(file) {
   }
 }
 
-document.getElementById("newpanForm").addEventListener("submit", async function (e) {
-  e.preventDefault();
+let uploadedDocUrls = Object.create(null);
+let uploadPromises = Object.create(null);
 
-  if (currentStepIndex !== getSteps().length - 1) {
-    goNextStep();
+function resetUploadedDocuments(){
+  uploadedDocUrls = Object.create(null);
+  uploadPromises = Object.create(null);
+  Object.keys(croppedFiles).forEach(k=>delete croppedFiles[k]);
+}
+
+function requiredNewDocumentIds(){
+  const ids=['photo','signature','aadhaarFront','aadhaarBack','dobProof'];
+  if(isMinorApplicant) ids.push('guardianAadhaarFront','guardianAadhaarBack');
+  return ids;
+}
+function requiredCorrectionDocumentIds(){return ['corPhoto','corSignature','corAadhaarFront','corAadhaarBack','corDobProof'];}
+function allDocsUploaded(ids){return ids.every(id=>!!uploadedDocUrls[id]);}
+
+async function uploadCroppedDocument(id,file){
+  if(!file) return null;
+  const input=document.getElementById(id);
+  const holder=input?.parentElement;
+  const old=holder?.querySelector('.doc-upload-state');
+  if(old) old.innerHTML='<span><span class="upload-spinner"></span> Uploading…</span>';
+  const promise=uploadToCloudinary(file).then(url=>{
+    uploadedDocUrls[id]=url;
+    if(holder){
+      let card=holder.querySelector('.doc-upload-state');
+      if(!card){card=document.createElement('div');card.className='doc-upload-state';holder.appendChild(card)}
+      card.innerHTML=`<span class="doc-upload-ok">✓ Uploaded</span><button type="button" data-recrop="${id}">Re-crop & Upload</button><button type="button" data-replace="${id}">Replace</button>`;
+      card.querySelector('[data-recrop]')?.addEventListener('click',()=>openCropForFile(id,croppedFiles[id]||input.files[0]));
+      card.querySelector('[data-replace]')?.addEventListener('click',()=>{delete uploadedDocUrls[id];delete croppedFiles[id];input.value='';input.click()});
+    }
+    updateSubmitAvailability();
+    return url;
+  }).catch(err=>{
+    delete uploadedDocUrls[id];
+    if(holder){
+      let card=holder.querySelector('.doc-upload-state');
+      if(!card){card=document.createElement('div');card.className='doc-upload-state';holder.appendChild(card)}
+      card.innerHTML=`<span class="doc-upload-error">Upload failed</span><button type="button" data-retry="${id}">Retry</button>`;
+      card.querySelector('[data-retry]')?.addEventListener('click',()=>openCropForFile(id,croppedFiles[id]||input.files[0]));
+    }
+    showToast(`${input?.previousElementSibling?.textContent||'Document'} upload failed: ${err.message||err}`,'error');
+    throw err;
+  }).finally(()=>delete uploadPromises[id]);
+  uploadPromises[id]=promise;
+  return promise;
+}
+
+function updateSubmitAvailability(){
+  const newBtn=document.getElementById('submitStepBtn');
+  if(newBtn && currentStepIndex===getSteps().length-1){
+    const ready=allDocsUploaded(requiredNewDocumentIds());
+    newBtn.disabled=!ready;
+    newBtn.title=ready?'':'Sabhi documents pehle Crop & Upload karein';
+  }
+  const corBtn=document.getElementById('corSubmitBtn');
+  if(corBtn && correctionStepIndex===correctionSteps.length-1){
+    const ready=allDocsUploaded(requiredCorrectionDocumentIds());
+    corBtn.disabled=!ready;
+    corBtn.title=ready?'':'Sabhi documents pehle Crop & Upload karein';
+  }
+}
+
+async function confirmCrop(skip=false){
+  const id=cropState.id,file=cropState.file;
+  if(!id||!file)return;
+  if(skip){
+    croppedFiles[id]=file;
+    updateDocCard(id,file,false);
+    closeCrop();
+    try{await uploadCroppedDocument(id,file);}catch{}
     return;
   }
+  const st=cropEl('cropStage'),b=cropState.box;
+  const out=document.createElement('canvas');
+  const sx=(b.x-cropState.ox)/cropState.scale,sy=(b.y-cropState.oy)/cropState.scale,sw=b.w/cropState.scale,sh=b.h/cropState.scale;
+  const src=cropState.img;
+  out.width=Math.max(1,Math.round(sw));out.height=Math.max(1,Math.round(sh));
+  const ctx=out.getContext('2d');ctx.save();
+  if(cropState.rot){ctx.translate(out.width/2,out.height/2);ctx.rotate(-cropState.rot*Math.PI/180);ctx.drawImage(src,-sw/2,-sh/2,sw,sh)}
+  else ctx.drawImage(src,sx,sy,sw,sh,0,0,out.width,out.height);
+  ctx.restore();
+  const blob=await new Promise(r=>out.toBlob(r,'image/jpeg',.92));
+  const cf=new File([blob],(file.name.replace(/\.[^.]+$/,'')||id)+'.jpg',{type:'image/jpeg'});
+  croppedFiles[id]=cf;updateDocCard(id,cf,true);closeCrop();
+  try{await uploadCroppedDocument(id,cf);}catch{}
+}
 
-  if (!validateCurrentStep()) return;
+function buildNewPanPreviewData(){
+  const name=[document.getElementById('firstName')?.value,document.getElementById('middleName')?.value,document.getElementById('lastName')?.value].filter(Boolean).join(' ').trim();
+  const father=[document.getElementById('fatherFirstName')?.value,document.getElementById('fatherMiddleName')?.value,document.getElementById('fatherlastName')?.value].filter(Boolean).join(' ').trim();
+  const dob=document.getElementById('dob')?.value||'';
+  const photo=croppedFiles.photo||document.getElementById('photo')?.files?.[0];
+  return {name,father,dob,photo,pan:'XXXP0000X',type:'New PAN'};
+}
+function showPanPreviewPopup(data,finalAction){
+  const photoUrl=data.photo?URL.createObjectURL(data.photo):'';
+  openModal(`<div class="pan-confirm-modal">
+    <div class="review-final-head"><span class="eyebrow">FINAL CHECK</span><h3>Dummy PAN Card Preview</h3><p>Ye sirf demo preview hai. Actual application abhi submit nahi hui hai.</p></div>
+    <div class="dummy-pan-card">
+      <div class="dummy-pan-top"><strong>INCOME TAX DEPARTMENT</strong><span>GOVT. OF INDIA</span></div>
+      <div class="dummy-pan-body"><div class="dummy-photo">${photoUrl?`<img src="${photoUrl}" alt="Photo">`:''}</div><div class="dummy-pan-info"><div><small>Name</small><strong>${escapeHtml(data.name||'YOUR NAME')}</strong></div><div><small>Father's Name</small><strong>${escapeHtml(data.father||'FATHER NAME')}</strong></div><div class="dummy-pan-row"><div><small>DOB</small><strong>${data.dob?new Date(data.dob+'T00:00:00').toLocaleDateString('en-IN'):'DD/MM/YYYY'}</strong></div><div><small>PAN</small><strong>${escapeHtml(data.pan)}</strong></div></div></div></div>
+    </div>
+    <div class="final-review-note"><i class="fa fa-circle-info"></i> Demo card only — actual PAN government document nahi hai.</div>
+    <div class="popup-actions"><button class="btn ghost" type="button" onclick="closeModal()"><i class="fa fa-pen"></i> Edit</button><button class="btn" type="button" id="finalConfirmBtn"><i class="fa fa-check"></i> Final Submit</button></div>
+  </div>`);
+  document.getElementById('finalConfirmBtn').onclick=async()=>{closeModal();await finalAction();};
+}
 
-  const loading = document.getElementById("loadingOverlay");
-  const submitBtn = document.querySelector("#newpanForm button[type='submit']");
+async function createNewPanApplication(){
+  if(!currentUser)return;
+  const submitBtn=document.getElementById('submitStepBtn');
+  const ids=requiredNewDocumentIds();
+  if(!allDocsUploaded(ids)){showToast('Sabhi documents ko Crop & Upload karein','error');return;}
+  if(Object.values(uploadPromises).length){showToast('Documents upload ho rahe hain, please wait…','error');return;}
+  submitBtn.disabled=true;submitBtn.innerHTML='<span class="upload-spinner"></span> Submitting…';
+  try{
+    const firstName=document.getElementById('firstName').value.trim(),middleName=document.getElementById('middleName').value.trim(),lastName=document.getElementById('lastName').value.trim();
+    const fatherName=[document.getElementById('fatherFirstName').value.trim(),document.getElementById('fatherMiddleName').value.trim(),document.getElementById('fatherlastName').value.trim()].filter(Boolean).join(' ');
+    const motherName=[document.getElementById('motherfirstName').value.trim(),document.getElementById('motherMiddleName').value.trim(),document.getElementById('motherlastName').value.trim()].filter(Boolean).join(' ');
+    const dobValue=document.getElementById('dob').value,birthDate=new Date(dobValue),today=new Date();let age=today.getFullYear()-birthDate.getFullYear();const mm=today.getMonth()-birthDate.getMonth();if(mm<0||(mm===0&&today.getDate()<birthDate.getDate()))age--;
+    const postOfficeEl=document.getElementById('postOffice'),manualEl=document.getElementById('manualPO');const postOfficeValue=postOfficeEl.value==='manual'?manualEl.value.trim():postOfficeEl.value.trim();
+    if(!postOfficeValue)throw new Error('Post Office required');
+    let guardianName='',guardianFront='',guardianBack='';
+    if(age<18){guardianName=[document.getElementById('guardianfirstName').value.trim(),document.getElementById('guardianMiddleName').value.trim(),document.getElementById('guardianlastName').value.trim()].filter(Boolean).join(' ');guardianFront=uploadedDocUrls.guardianAadhaarFront||'';guardianBack=uploadedDocUrls.guardianAadhaarBack||'';if(!guardianName||!guardianFront||!guardianBack)throw new Error('Guardian details/documents required for minor');}
+    const fee=await getAdminPaymentSettings();
+    const data={ackNo:generateAck(),applicationType:'New PAN',userId:currentUser.uid,userEmail:currentUser.email,firstName,middleName,lastName,name:[firstName,middleName,lastName].filter(Boolean).join(' '),father:fatherName,mother:motherName,aadhaar:document.getElementById('aadhar').value,nameAadhar:document.getElementById('nameAadhar').value,dob:dobValue,age,isMinor:age<18,gender:document.getElementById('gender').value,phone:document.getElementById('phone').value,email:document.getElementById('email').value,flatNo:document.getElementById('flatNo').value,villageCity:document.getElementById('villageCity').value,postOffice:postOfficeValue,subDivision:document.getElementById('subDivision').value,district:document.getElementById('district').value,state:document.getElementById('state').value,pinCode:document.getElementById('pinCode').value,dobdocType:document.getElementById('proof_dob').value,photo:uploadedDocUrls.photo,signature:uploadedDocUrls.signature,aadhaarFront:uploadedDocUrls.aadhaarFront,aadhaarBack:uploadedDocUrls.aadhaarBack,dobProof:uploadedDocUrls.dobProof,guardianName,guardianFront,guardianBack,status:'pending',paymentStatus:'pending',paymentAmount:fee,createdAt:new Date()};
+    await db.collection('applications').add(data);generatePDF(data);clearDraft();resetNewPanFormAfterSubmit();showToast('Application submitted successfully');
+    setTimeout(()=>openPaymentChoicePopup(data.ackNo,fee,data),350);
+  }catch(err){showToast('Submit error: '+(err.message||err),'error');submitBtn.disabled=false;submitBtn.innerHTML='Submit';}
+}
 
-  try {
-    loading.style.display = "flex";
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<span class="upload-spinner"></span> Upload Documents';
-
-    const firstName = document.getElementById("firstName").value.trim();
-    const middleName = document.getElementById("middleName").value.trim();
-    const lastName = document.getElementById("lastName").value.trim();
-
-    const fatherName =
-      document.getElementById("fatherlastName").value.trim() + " " +
-      (document.getElementById("fatherMiddleName").value.trim()
-        ? document.getElementById("fatherMiddleName").value.trim() + " "
-        : "") +
-      document.getElementById("fatherFirstName").value.trim();
-
-    const motherName =
-      document.getElementById("motherlastName").value.trim() + " " +
-      (document.getElementById("motherMiddleName").value.trim()
-        ? document.getElementById("motherMiddleName").value.trim() + " "
-        : "") +
-      document.getElementById("motherfirstName").value.trim();
-
-    const dobValue = document.getElementById("dob").value;
-    const birthDate = new Date(dobValue);
-    const today = new Date();
-
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const m = today.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
-
-    const files = ["photo","signature","aadhaarFront","aadhaarBack","dobProof"].map(id=>croppedFiles[id] || document.getElementById(id).files[0]);
-
-    if (files.some((file) => !file)) throw "All files required";
-
-    const [photo, signature, aadhaarFront, aadhaarBack, dobProof] =
-      await Promise.all(files.map(uploadToCloudinary));
-
-    let guardianName = "";
-    let guardianFront = "";
-    let guardianBack = "";
-
-    if (age < 18) {
-      const gFirst = document.getElementById("guardianfirstName").value.trim();
-      const gMiddle = document.getElementById("guardianMiddleName").value.trim();
-      const gLast = document.getElementById("guardianlastName").value.trim();
-
-      const gName = gLast + " " + (gMiddle ? gMiddle + " " : "") + gFirst;
-      const gFrontFile = croppedFiles.guardianAadhaarFront || document.getElementById("guardianAadhaarFront").files[0];
-      const gBackFile = croppedFiles.guardianAadhaarBack || document.getElementById("guardianAadhaarBack").files[0];
-
-      if (!gName.trim() || !gFrontFile || !gBackFile) {
-        throw "Guardian details required for minor";
-      }
-
-      guardianName = gName;
-      guardianFront = await uploadToCloudinary(gFrontFile);
-      guardianBack = await uploadToCloudinary(gBackFile);
-    }
-
-    const ackNo = generateAck();
-    const postOfficeEl = document.getElementById("postOffice");
-    const manualEl = document.getElementById("manualPO");
-    const postOfficeValue = postOfficeEl.value === "manual"
-      ? manualEl.value.trim()
-      : postOfficeEl.value.trim();
-
-    if (!postOfficeValue) throw "Post Office required";
-
-    formData = {
-      ackNo,
-      applicationType: "New PAN",
-      userId: currentUser.uid,
-      userEmail: currentUser.email,
-      firstName,
-      middleName,
-      lastName,
-      name: [firstName, middleName, lastName].filter(Boolean).join(" "),
-      father: fatherName,
-      mother: motherName,
-      aadhaar: document.getElementById("aadhar").value,
-      nameAadhar: document.getElementById("nameAadhar").value,
-      dob: dobValue,
-      age,
-      isMinor: age < 18,
-      gender: document.getElementById("gender").value,
-      phone: document.getElementById("phone").value,
-      email: document.getElementById("email").value,
-      flatNo: document.getElementById("flatNo").value,
-      villageCity: document.getElementById("villageCity").value,
-      postOffice: postOfficeValue,
-      subDivision: document.getElementById("subDivision").value,
-      district: document.getElementById("district").value,
-      state: document.getElementById("state").value,
-      pinCode: document.getElementById("pinCode").value,
-      dobdocType: document.getElementById("proof_dob").value,
-      photo,
-      signature,
-      aadhaarFront,
-      aadhaarBack,
-      dobProof,
-      guardianName,
-      guardianFront,
-      guardianBack,
-      status: "pending",
-      createdAt: new Date()
-    };
-
-    await db.collection("applications").add(formData);
-    generatePDF(formData);
-    clearDraft();
-    resetNewPanFormAfterSubmit();
-    showToast("Application submitted — form reset ho gaya");
-
-    setTimeout(() => {
-      localStorage.setItem("ackNo", ackNo);
-      openCustomerPaymentByAck(ackNo);
-    }, 1500);
-  } catch (err) {
-    showToast("Error: " + err, "error");
-  } finally {
-    loading.style.display = "none";
-    submitBtn.disabled = false;
-    submitBtn.innerHTML = "Submit";
-  }
+document.getElementById('newpanForm').addEventListener('submit',async function(e){
+  e.preventDefault();
+  if(currentStepIndex!==getSteps().length-1){goNextStep();return;}
+  if(!validateCurrentStep())return;
+  if(!allDocsUploaded(requiredNewDocumentIds())){showToast('Sabhi documents pehle Crop & Upload karein','error');return;}
+  showPanPreviewPopup(buildNewPanPreviewData(),createNewPanApplication);
 });
+
+function openPaymentChoicePopup(ack,amount,data={}){
+  const safeAck=escapeHtml(ack),safeAmount=Number(amount||0).toLocaleString('en-IN');
+  openModal(`<div class="payment-choice-modal"><div class="review-final-head"><span class="eyebrow">APPLICATION SUBMITTED</span><h3>Payment Method</h3><p>ACK <b>${safeAck}</b> ke liye payment method choose karein.</p></div><div class="payment-choice-amount"><span>Amount</span><strong>₹${safeAmount}</strong></div><div class="payment-choice-grid"><button class="payment-choice-card" id="choicePayNow"><i class="fa fa-qrcode"></i><strong>Pay Now</strong><small>UPI QR ke saath amount automatically set hoga</small></button><button class="payment-choice-card" id="choiceCustomerPay"><i class="fa fa-link"></i><strong>Payment via Customer</strong><small>Customer ke liye payment link create karein</small></button></div></div>`);
+  document.getElementById('choicePayNow').onclick=async()=>{closeModal();try{await openDirectPayment(ack);}catch(e){showToast(e.message||e,'error')}};
+  document.getElementById('choiceCustomerPay').onclick=()=>{closeModal();openCustomerPaymentCreatorForAck(ack,amount)};
+}
+function openCustomerPaymentCreatorForAck(ack,amount){openCustomerPaymentCreator();const a=document.getElementById('customerPayAck');const price=document.getElementById('customerPayAmount');if(a)a.value=ack;if(price)price.value='';setTimeout(()=>previewCustomerPaymentApplication(),80);}
 
 /* ================= PAN CORRECTION ================= */
 const correctionSteps = [
@@ -943,8 +954,7 @@ const correctionSteps = [
   { id: "select", label: "Select Correction" },
   { id: "details", label: "Correction Details" },
   { id: "contactaddress", label: "Contact & Address" },
-  { id: "documents", label: "Documents" },
-  { id: "review", label: "Review" }
+  { id: "documents", label: "Documents" }
 ];
 let correctionStepIndex = 0;
 let correctionDraftTimer = null;
@@ -979,6 +989,7 @@ function renderCorrectionSteps() {
   document.getElementById("corPrevBtn").style.display=correctionStepIndex===0?"none":"inline-flex";
   document.getElementById("corNextBtn").style.display=correctionStepIndex===correctionSteps.length-1?"none":"inline-flex";
   document.getElementById("corSubmitBtn").style.display=correctionStepIndex===correctionSteps.length-1?"inline-flex":"none";
+  updateSubmitAvailability();
   document.getElementById("corStepProgress").textContent=`Step ${correctionStepIndex+1} of ${correctionSteps.length}`;
   updateCorrectionSummary();
   updateCorrectionPreview();
@@ -1051,28 +1062,32 @@ function buildCorrectionData(){
     correctionFields:selectedCorrections(),otherCorrection:document.getElementById('corOtherValue')?.value.trim()||'',status:'pending',paymentStatus:'pending',paymentAmount:190,createdAt:new Date()
   };
 }
-async function submitCorrectionApplication(){
-  const correctionSubmit=document.getElementById('corSubmitBtn');
-  if(correctionSubmit){correctionSubmit.disabled=true;correctionSubmit.innerHTML='<span class="upload-spinner"></span> Upload Documents';}
-  if(!validateCorrectionStep())return;
+function buildCorrectionPreviewData(){
+  const name=[document.getElementById('corFirstName')?.value,document.getElementById('corMiddleName')?.value,document.getElementById('corLastName')?.value].filter(Boolean).join(' ').trim();
+  return {name,father:document.getElementById('corFatherName')?.value.trim()||'',dob:document.getElementById('corDob')?.value||'',pan:document.getElementById('corPAN')?.value.trim().toUpperCase()||'ABCDE1234F',photo:croppedFiles.corPhoto||document.getElementById('corPhoto')?.files?.[0],type:'PAN Correction'};
+}
+async function createCorrectionApplication(){
+  const btn=document.getElementById('corSubmitBtn');
   if(!currentUser)return;
-  const files=['corPhoto','corSignature','corAadhaarFront','corAadhaarBack','corDobProof'].map(id=>croppedFiles[id]||document.getElementById(id)?.files?.[0]);
-  if(files.some(f=>!f)){showToast('Correction ke liye New PAN jaise same 5 documents required hain','error');correctionStepIndex=4;renderCorrectionSteps();return;}
-  const loading=document.getElementById('loadingOverlay'); const btn=document.getElementById('corSubmitBtn');
+  if(!allDocsUploaded(requiredCorrectionDocumentIds())){showToast('Sabhi correction documents pehle Crop & Upload karein','error');return;}
+  if(Object.values(uploadPromises).length){showToast('Documents upload ho rahe hain, please wait…','error');return;}
+  btn.disabled=true;btn.innerHTML='<span class="upload-spinner"></span> Submitting…';
   try{
-    loading.style.display='flex';btn.disabled=true;btn.innerHTML='<span class="upload-spinner"></span> Upload Documents';
-    const [photo,signature,aadhaarFront,aadhaarBack,dobProof]=await Promise.all(files.map(uploadToCloudinary));
-    const data=buildCorrectionData(); Object.assign(data,{photo,signature,aadhaarFront,aadhaarBack,dobProof,documentsSameAsNewPAN:true});
-    const ref=await db.collection('applications').add(data);
-    data.id=ref.id; generatePDF(data);
-    clearCorrectionDraft(); resetCorrectionFormAfterSubmit();
-    showToast('PAN Correction submitted — form reset ho gaya');
-    setTimeout(()=>openCustomerPaymentByAck(data.ackNo),1000);
-  }catch(err){showToast('Correction error: '+(err.message||err),'error');}
-  finally{loading.style.display='none';btn.disabled=false;btn.textContent='Submit Correction';}
+    const data=buildCorrectionData();
+    const fee=await getAdminPaymentSettings();
+    Object.assign(data,{paymentAmount:fee,photo:uploadedDocUrls.corPhoto,signature:uploadedDocUrls.corSignature,aadhaarFront:uploadedDocUrls.corAadhaarFront,aadhaarBack:uploadedDocUrls.corAadhaarBack,dobProof:uploadedDocUrls.corDobProof});
+    const ref=await db.collection('applications').add(data);data.id=ref.id;generatePDF(data);clearCorrectionDraft();resetCorrectionFormAfterSubmit();showToast('PAN Correction submitted successfully');
+    setTimeout(()=>openPaymentChoicePopup(data.ackNo,fee,data),350);
+  }catch(err){showToast('Correction error: '+(err.message||err),'error');btn.disabled=false;btn.innerHTML='Submit Correction';}
+}
+async function submitCorrectionApplication(){
+  if(!validateCorrectionStep())return;
+  if(!allDocsUploaded(requiredCorrectionDocumentIds())){showToast('Sabhi documents pehle Crop & Upload karein','error');return;}
+  showPanPreviewPopup(buildCorrectionPreviewData(),createCorrectionApplication);
 }
 function resetCorrectionFormAfterSubmit(){
-  clearTimeout(correctionDraftTimer); const form=document.getElementById('correctionForm'); if(!form)return; form.reset(); form.querySelectorAll('input[type=file]').forEach(el=>el.value=''); document.getElementById('correctionDynamicFields').innerHTML='<div class="empty-correction">No correction selected yet.</div>'; document.getElementById('correctionNormalSummary').textContent='Basic details yahan show honge.'; correctionStepIndex=0; renderCorrectionSteps(); clearCorrectionDraft();
+  clearTimeout(correctionDraftTimer);
+  resetUploadedDocuments(); const form=document.getElementById('correctionForm'); if(!form)return; form.reset(); form.querySelectorAll('input[type=file]').forEach(el=>el.value=''); document.getElementById('correctionDynamicFields').innerHTML='<div class="empty-correction">No correction selected yet.</div>'; document.getElementById('correctionNormalSummary').textContent='Basic details yahan show honge.'; correctionStepIndex=0; renderCorrectionSteps(); clearCorrectionDraft();
 }
 
 document.getElementById('correctionForm')?.addEventListener('submit',e=>{e.preventDefault();submitCorrectionApplication();});
@@ -1474,6 +1489,16 @@ async function goToPayment(){
   try{ await openDirectPayment(ack); }catch(e){ document.getElementById('paymentResult').textContent='Error: '+(e.message||e); }
 }
 
+async function getAdminPaymentSettings(){
+  try{
+    const snap=await db.collection('settings').doc('business').get();
+    if(snap.exists){const d=snap.data()||{};const fee=Number(d.fee);if(Number.isFinite(fee)&&fee>0)return Math.round(fee);}
+  }catch(e){console.warn('Settings read failed',e);}
+  const local=localStorage.getItem('ts_pan_admin_settings');
+  if(local){try{const d=JSON.parse(local);const fee=Number(d.fee);if(Number.isFinite(fee)&&fee>0)return Math.round(fee);}catch{} }
+  return 190;
+}
+
 async function openDirectPayment(ack){
   const app=await findApplicationByAck(ack);
   if(!app) throw new Error('Application not found.');
@@ -1497,13 +1522,12 @@ async function submitDirectPaymentProof(){
   const btn=document.getElementById('directPaySubmit'); const appId=btn.dataset.appId; const ack=btn.dataset.ack;
   const file=document.getElementById('directPayScreenshot').files[0]; const utr=document.getElementById('directPayUtr').value.trim(); const msg=document.getElementById('directPayMsg');
   if(!appId||!ack)return;
-  if(!file){msg.textContent='Payment screenshot required.';msg.style.color='#dc2626';return;}
-  if(!file.type.startsWith('image/')){msg.textContent='Only image screenshot allowed.';msg.style.color='#dc2626';return;}
-  if(file.size>5*1024*1024){msg.textContent='Screenshot maximum 5 MB.';msg.style.color='#dc2626';return;}
+  if(file && !file.type.startsWith('image/')){msg.textContent='Only image screenshot allowed.';msg.style.color='#dc2626';return;}
+  if(file && file.size>5*1024*1024){msg.textContent='Screenshot maximum 5 MB.';msg.style.color='#dc2626';return;}
   if(!/^\d{8,25}$/.test(utr)){msg.textContent='Valid UTR / Transaction ID required (8–25 digits).';msg.style.color='#dc2626';return;}
   btn.disabled=true; msg.textContent='Uploading payment proof…';msg.style.color='#2563eb';
   try{
-    const screenshot=await uploadPaymentProofToCloudinary(file,ack);
+    const screenshot=file?await uploadPaymentProofToCloudinary(file,ack):'';
     const now=firebase.firestore.FieldValue.serverTimestamp();
     await db.collection('applications').doc(appId).update({paymentStatus:'verification_pending',paymentUtr:utr,paymentScreenshot:screenshot,paymentSubmittedAt:now});
     msg.textContent='Payment request sent to admin for verification ✓';msg.style.color='#15803d';
@@ -1653,11 +1677,16 @@ async function loadCustomerPaymentPage(){
 }
 
 function showPaymentReceivedAnimation(){
-  const overlay=document.getElementById('paymentAnimationOverlay'); if(!overlay)return;
+  const overlay=document.getElementById('paymentAnimationOverlay'); if(!overlay)return Promise.resolve();
   overlay.hidden=false; overlay.classList.add('show');
-  const title=document.getElementById('paymentAnimationTitle'); const text=document.getElementById('paymentAnimationText');
-  if(title)title.textContent='Payment Received ✓'; if(text)text.textContent='Payment request successfully sent. Verification is pending with TECH SOURCE.';
-  setTimeout(()=>{overlay.classList.remove('show');setTimeout(()=>overlay.hidden=true,300);},2600);
+  const title=document.getElementById('paymentAnimationTitle'); const text=document.getElementById('paymentAnimationText'); const line=overlay.querySelector('.payment-status-line b');
+  if(title)title.textContent='Payment Request Sent';
+  if(text)text.textContent='Your payment request is being completed securely.';
+  if(line)line.textContent='Processing…';
+  return new Promise(resolve=>setTimeout(()=>{
+    overlay.classList.remove('show');
+    setTimeout(()=>{overlay.hidden=true;resolve();},220);
+  },2000));
 }
 
 async function customerPaymentDone(){
@@ -1706,10 +1735,14 @@ async function submitCustomerPaymentRequest(){
       await db.collection('applications').doc(customerPaymentContext.applicationId).update({paymentStatus:'verification_pending',paymentUtr:utr||'',paymentRequestId:customerPaymentContext.id,paymentSubmittedAt:now});
     }
     customerPaymentContext.status='verification_pending';
-    document.getElementById('cpTitle').textContent='Payment Submitted';
-    document.getElementById('cpMessage').textContent='Thank you. Your payment request has been sent to TECH SOURCE for verification.';
-    status.textContent='Admin verification pending ✓'; status.style.color='#15803d';
     btn.hidden=true; input.disabled=true;
+    document.getElementById('cpQr').parentElement.hidden=true;
+    document.querySelector('.cp-upi').hidden=true;
+    document.getElementById('cpUtrWrap').hidden=true;
+    document.getElementById('cpTitle').textContent='Your Payment Request Sent Successfully';
+    document.getElementById('cpMessage').textContent='Payment request successfully completed and sent to TECH SOURCE. Your payment is now pending admin verification.';
+    status.textContent='Payment Request Sent Successfully ✓'; status.style.color='#15803d';
+    await showPaymentReceivedAnimation();
   }catch(err){ btn.disabled=false; status.textContent='Submission failed: '+(err.message||err); status.style.color='#dc2626'; }
 }
 
