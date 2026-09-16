@@ -13,7 +13,6 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="script.js" defer></script>
 </head>
 <body>
@@ -40,8 +39,26 @@
           </button>
         </div>
       </div>
+      <div class="service-menu-wrap header-service-menu">
+        <button id="serviceMenuBtn" class="service-menu-btn" type="button" aria-label="Open services"><i class="fa fa-bars"></i><span>Services</span><span id="userActionBadge" class="user-action-badge" hidden>0</span></button>
+        <div id="serviceDrawer" class="service-drawer" aria-hidden="true">
+          <div class="service-drawer-head"><div><span class="eyebrow">TECH SOURCE</span><h3>All Services</h3></div><button type="button" class="icon-button" onclick="toggleServiceMenu(false)"><i class="fa fa-times"></i></button></div>
+          <div id="serviceActionPanel" class="service-action-panel" hidden></div>
+          <div class="service-drawer-grid">
+            <button type="button" onclick="toggleServiceMenu(false);openForm()"><i class="fa fa-plus-circle"></i><span>New PAN</span></button>
+            <button type="button" onclick="toggleServiceMenu(false);openCorrectionForm()"><i class="fa fa-pen-to-square"></i><span>PAN Correction</span></button>
+            <button type="button" onclick="toggleServiceMenu(false);trackstatus()"><i class="fa fa-route"></i><span>Track Status</span></button>
+            <button type="button" onclick="toggleServiceMenu(false);openPaymentCheck()"><i class="fa fa-credit-card"></i><span>Payment Status</span></button>
+            <button type="button" onclick="toggleServiceMenu(false);openDownloadPopup()"><i class="fa fa-download"></i><span>Download PAN</span></button>
+            <button type="button" onclick="toggleServiceMenu(false);openAccountPopup()"><i class="fa fa-clock-rotate-left"></i><span>History</span></button>
+            <button type="button" onclick="toggleServiceMenu(false);window.open('https://www.pan.utiitsl.com/PAN_ONLINE/ePANCardHome','_blank')"><i class="fa fa-id-card"></i><span>UTIITSL</span></button>
+            <button type="button" onclick="toggleServiceMenu(false);window.open('https://onlineservices.proteantech.in/SiteMaintenance.html','_blank')"><i class="fa fa-building"></i><span>NSDL / Protean</span></button>
+          </div>
+        </div>
+      </div>
     </div>
   </header>
+
 
   <main class="page-shell">
     <section class="quick-actions" aria-label="PAN service actions">
@@ -402,7 +419,7 @@
 
       <div class="form-footer">
         <div class="notes">
-          <p><span id="stepProgressText">Step 1 of 5</span>. Documents must be JPG, PDF, or PNG format. PAN Card apply fee: Rs. 190.</p>
+          <p><span id="stepProgressText">Step 1 of 5</span>. Documents must be JPG, JPEG, PNG, or WEBP format. PAN Card apply fee: Rs. 190.</p>
         </div>
         <div class="form-actions">
           <button class="btn ghost" type="button" id="prevStepBtn">Back</button>
@@ -482,6 +499,7 @@
           <div class="form-group"><label for="corAadhaarFront">Aadhaar Card Front*</label><input id="corAadhaarFront" type="file" accept="image/jpeg,image/png,image/webp" required></div>
           <div class="form-group"><label for="corAadhaarBack">Aadhaar Card Back*</label><input id="corAadhaarBack" type="file" accept="image/jpeg,image/png,image/webp" required></div>
           <div class="form-group"><label for="corDobProof">DOB Proof Certificate*</label><input id="corDobProof" type="file" accept="image/jpeg,image/png,image/webp" required></div>
+          <div class="form-group"><label for="corOldPanCopy">Old PAN Card Copy*</label><input id="corOldPanCopy" type="file" accept="image/jpeg,image/png,image/webp" required><div class="doc-upload-state" id="uploadState_corOldPanCopy" aria-live="polite"></div></div>
         </div>
       </section>
 
@@ -713,6 +731,7 @@
       </div>
       <div class="cp-upi">UPI ID: <strong id="cpUpi">9661905351-3@axl</strong></div>
       <button id="cpDoneBtn" class="cp-done-btn" type="button" onclick="customerPaymentDone()"><i class="fa fa-check-circle"></i> Payment Done</button>
+      <div id="cpSuccessPanel" class="cp-success-panel" hidden><div class="cp-success-icon"><i class="fa fa-check"></i></div><h2>Payment Request Sent</h2><p>Your payment request has been sent. Payment is pending for review. Please wait.</p><button id="cpRetryBtn" class="cp-retry-btn" type="button" onclick="retryCustomerPayment()"><i class="fa fa-rotate-right"></i> Retry Payment</button></div>
       <p id="cpStatus" class="cp-status"></p>
       <div id="cpUtrWrap" class="cp-utr-wrap" hidden>
         <label for="cpUtr">UTR / Transaction ID <span id="cpUtrRequiredMark">*</span></label>

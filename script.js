@@ -750,10 +750,9 @@ const croppedFiles = Object.create(null);
 let cropState = {id:null,file:null,img:null,scale:1,rot:0,ox:0,oy:0,box:{x:0,y:0,w:0,h:0},drag:null,last:null,pinch:null};
 const cropIds=['photo','signature','aadhaarFront','aadhaarBack','dobProof','guardianAadhaarFront','guardianAadhaarBack','corPhoto','corSignature','corAadhaarFront','corAadhaarBack','corDobProof'];
 function cropEl(id){return document.getElementById(id)}
-function openCropForFile(id,file){ if(!file)return; cropState={id,file,img:null,scale:1,rot:0,ox:0,oy:0,box:{x:0,y:0,w:0,h:0},drag:null,last:null,pinch:null}; const modal=cropEl('documentCropModal'); cropEl('cropDocTitle').textContent=(cropEl(id)?.closest('.form-group')?.querySelector('label')?.textContent||'Document')+' — Crop'; cropEl('cropFileName').textContent=file.name; modal.classList.add('show'); modal.setAttribute('aria-hidden','false'); if(file.type==='application/pdf'){loadCropPdf(file)}else{const r=new FileReader();r.onload=()=>loadCropImage(r.result);r.readAsDataURL(file)} }
+function openCropForFile(id,file){ if(!file||!String(file.type||'').startsWith('image/'))return; cropState={id,file,img:null,scale:1,rot:0,ox:0,oy:0,box:{x:0,y:0,w:0,h:0},drag:null,last:null,pinch:null}; const modal=cropEl('documentCropModal'); cropEl('cropDocTitle').textContent=(cropEl(id)?.closest('.form-group')?.querySelector('label')?.textContent||'Document')+' — Crop'; cropEl('cropFileName').textContent=file.name; modal.classList.add('show'); modal.setAttribute('aria-hidden','false'); const r=new FileReader();r.onload=()=>loadCropImage(r.result);r.readAsDataURL(file) }
 function closeCrop(){const m=cropEl('documentCropModal');m.classList.remove('show');m.setAttribute('aria-hidden','true');cropState.drag=null;cropState.pinch=null}
 function loadCropImage(src){const img=new Image();img.onload=()=>{cropState.img=img;cropState.rot=0;fitCrop();};img.onerror=()=>{alert('Image open nahi hui.');closeCrop()};img.src=src}
-async function loadCropPdf(file){try{const buf=await file.arrayBuffer();const task=pdfjsLib.getDocument({data:buf,password:(cb)=>{const pw=prompt('PDF password enter karein');cb(pw||'')}});const pdf=await task.promise;cropState.pdf=pdf;const page=await pdf.getPage(1);const vp=page.getViewport({scale:2});const c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;await page.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;loadCropImage(c.toDataURL('image/jpeg',.95))}catch(e){alert('PDF open nahi hua: '+(e.message||e));closeCrop()}}
 function fitCrop(){const st=cropEl('cropStage'),c=cropEl('cropCanvas');if(!cropState.img)return;const w=st.clientWidth,h=st.clientHeight;c.width=w*devicePixelRatio;c.height=h*devicePixelRatio;c.style.width=w+'px';c.style.height=h+'px';const iw=cropState.img.width,ih=cropState.img.height;cropState.scale=Math.min(w/iw,h/ih)*.98;cropState.ox=(w-iw*cropState.scale)/2;cropState.oy=(h-ih*cropState.scale)/2;cropState.box={x:w*.1,y:h*.12,w:w*.8,h:h*.76};drawCrop()}
 function drawCrop(){const st=cropEl('cropStage'),c=cropEl('cropCanvas'),ctx=c.getContext('2d');if(!cropState.img)return;const w=st.clientWidth,h=st.clientHeight,d=devicePixelRatio;c.width=w*d;c.height=h*d;ctx.setTransform(d,0,0,d,0,0);ctx.clearRect(0,0,w,h);ctx.save();ctx.translate(cropState.ox+cropState.img.width*cropState.scale/2,cropState.oy+cropState.img.height*cropState.scale/2);ctx.rotate(cropState.rot*Math.PI/180);ctx.drawImage(cropState.img,-cropState.img.width*cropState.scale/2,-cropState.img.height*cropState.scale/2,cropState.img.width*cropState.scale,cropState.img.height*cropState.scale);ctx.restore();const b=cropState.box,box=cropEl('cropBox');box.style.left=b.x+'px';box.style.top=b.y+'px';box.style.width=b.w+'px';box.style.height=b.h+'px';cropEl('cropShade').style.clipPath=`polygon(0 0,100% 0,100% 100%,0 100%,0 0,${b.x}px ${b.y}px,${b.x}px ${b.y+b.h}px,${b.x+b.w}px ${b.y+b.h}px,${b.x+b.w}px ${b.y}px,${b.x}px ${b.y}px)`}
 function point(e){const r=cropEl('cropStage').getBoundingClientRect();const t=e.touches?e.touches[0]:e;return{x:t.clientX-r.left,y:t.clientY-r.top}}
@@ -1283,7 +1282,7 @@ function downloadReceiptPdf(data, filePrefix = "PAN_RECEIPT") {
   doc.roundedRect(margin, 200, contentWidth, 45, 4, 4, "S");
   infoRow("Status", status, margin + 10, 214, 46);
   infoRow("Payment", payment.text, margin + 72, 214, 34);
-  infoRow("Service Fee", money(190), margin + 120, 214, 34);
+  infoRow("Service Fee", money(Number(data.paymentAmount || data.customerPaymentAmount || 0)), margin + 120, 214, 34);
   infoRow("Remark", data.remark || "No remark", margin + 10, 234, 160);
 
   if (data.guardianName) {
@@ -1475,6 +1474,7 @@ async function goToPayment(){
 }
 
 async function openDirectPayment(ack){
+  try{const settings=await db.collection('serviceSettings').doc('pan').get();if(settings.exists)CUSTOMER_UPI_ID=String(settings.data().upiId||CUSTOMER_UPI_ID);}catch(e){}
   const app=await findApplicationByAck(ack);
   if(!app) throw new Error('Application not found.');
   if(app.paymentStatus==='paid') throw new Error('Payment already verified.');
@@ -1500,7 +1500,7 @@ async function submitDirectPaymentProof(){
   if(!file){msg.textContent='Payment screenshot required.';msg.style.color='#dc2626';return;}
   if(!file.type.startsWith('image/')){msg.textContent='Only image screenshot allowed.';msg.style.color='#dc2626';return;}
   if(file.size>5*1024*1024){msg.textContent='Screenshot maximum 5 MB.';msg.style.color='#dc2626';return;}
-  if(!/^\d{8,25}$/.test(utr)){msg.textContent='Valid UTR / Transaction ID required (8–25 digits).';msg.style.color='#dc2626';return;}
+  if(!/^[A-Za-z0-9]{6,40}$/.test(utr)){msg.textContent='Valid UTR / Transaction ID required (6–40 letters or digits).';msg.style.color='#dc2626';return;}
   btn.disabled=true; msg.textContent='Uploading payment proof…';msg.style.color='#2563eb';
   try{
     const screenshot=await uploadPaymentProofToCloudinary(file,ack);
@@ -1520,7 +1520,7 @@ async function uploadPaymentProofToCloudinary(file,ack){
 }
 
 /* ================= CUSTOMER PAYMENT FLOW ================= */
-const CUSTOMER_UPI_ID = "9661905351-3@axl";
+let CUSTOMER_UPI_ID = "9661905351-3@axl";
 let customerPaymentContext = null;
 let customerPaymentLoaded = false;
 
@@ -1569,6 +1569,7 @@ function buildCustomerPaymentWhatsAppText(data, link){
 }
 
 async function loadCustomerPaymentPage(){
+  try{const settings=await db.collection('serviceSettings').doc('pan').get();if(settings.exists)CUSTOMER_UPI_ID=String(settings.data().upiId||CUSTOMER_UPI_ID);}catch(e){}
   const qs=new URLSearchParams(window.location.search);
   const requestId=qs.get('customerPayId');
   const ack=qs.get('customerPay');
@@ -2216,3 +2217,349 @@ function v3ShowPaymentChoices(ack){let o=document.getElementById('v3PaymentChoic
 // Direct Pay Now: screenshot is optional/removed; UTR is the only proof required.
 const _v3DirectSubmit=submitDirectPaymentProof;
 submitDirectPaymentProof=async function(){const btn=document.getElementById('directPaySubmit'),appId=btn?.dataset.appId,ack=btn?.dataset.ack,utr=document.getElementById('directPayUtr')?.value.trim(),msg=document.getElementById('directPayMsg');if(!appId||!ack)return;if(!/^\d{8,25}$/.test(utr||'')){msg.textContent='Valid UTR / Transaction ID required (8–25 digits).';msg.style.color='#dc2626';return}btn.disabled=true;msg.textContent='Submitting payment request…';msg.style.color='#2563eb';try{const now=firebase.firestore.FieldValue.serverTimestamp();await db.collection('applications').doc(appId).update({paymentStatus:'verification_pending',paymentUtr:utr,paymentSubmittedAt:now});msg.textContent='Your payment request has been sent successfully. Payment pending admin verification.';msg.style.color='#15803d';setTimeout(closePaymentPopup,1800)}catch(e){btn.disabled=false;msg.textContent='Submission failed: '+(e.message||e);msg.style.color='#dc2626'}};
+
+
+/* ================= TECH SOURCE V4 PRODUCTION UX / WORKFLOW PATCH ================= */
+(function(){
+  const V4_SETTINGS_DOC='pan';
+  const V4_REMARKS='remarkPresets';
+  const V4_DOC_KEYS=['photo','signature','aadhaarFront','aadhaarBack','dobProof','guardianFront','guardianBack','oldPanCopy'];
+  const V4_DOC_LABELS={photo:'Photo',signature:'Signature',aadhaarFront:'Aadhaar Front',aadhaarBack:'Aadhaar Back',dobProof:'DOB Proof',guardianFront:'Guardian Aadhaar Front',guardianBack:'Guardian Aadhaar Back',oldPanCopy:'Old PAN Card Copy'};
+  const v4$=id=>document.getElementById(id);
+  const v4esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  let v4Settings={businessName:'TECH SOURCE',upiId:'9661905351-3@axl',panFee:190,whatsapp:'9661905351'};
+  let v4RejectedContext=null;
+  let v4UserUnsub=null;
+
+  async function v4GetSettings(){
+    try{
+      const s=await db.collection('serviceSettings').doc(V4_SETTINGS_DOC).get();
+      if(s.exists) v4Settings={...v4Settings,...s.data()};
+    }catch(e){}
+    return v4Settings;
+  }
+  window.v4GetSettings=v4GetSettings;
+
+  async function v4ApplySettingsToUI(){
+    const s=await v4GetSettings();
+    const price=document.querySelector('.pan-price-panel strong'); if(price) price.textContent='₹ '+Number(s.panFee||190).toLocaleString('en-IN');
+    const directUpi=document.querySelector('#directPaymentView .cp-upi strong'); if(directUpi) directUpi.textContent=s.upiId||'';
+  }
+
+  // One local draft only; restore the exact last location.
+  const _v4OpenForm=window.openForm;
+  window.openForm=function(){
+    if(!currentUser){redirectToLogin();return;}
+    _v4OpenForm();
+    setTimeout(()=>{loadDraft();renderSteps();v4ApplySettingsToUI();},0);
+  };
+
+  // Remove PDF logic from the cropper: image files only.
+  window.openCropForFile=function(id,file){
+    if(!file)return;
+    if(!String(file.type||'').startsWith('image/')){showToast('Only JPG, JPEG, PNG or WEBP images are supported.','error');return;}
+    cropState={id,file,img:null,scale:1,rot:0,ox:0,oy:0,box:{x:0,y:0,w:0,h:0},drag:null,last:null,pinch:null};
+    const modal=cropEl('documentCropModal'); if(!modal)return;
+    cropEl('cropDocTitle').textContent=(cropEl(id)?.closest('.form-group')?.querySelector('label')?.textContent||V4_DOC_LABELS[id]||'Document')+' — Crop';
+    cropEl('cropFileName').textContent=file.name;
+    modal.classList.add('show'); modal.setAttribute('aria-hidden','false');
+    const r=new FileReader();r.onload=()=>loadCropImage(r.result);r.readAsDataURL(file);
+  };
+
+  // New PAN preview: richer PAN-card layout with gender and demo number.
+  function v4DemoPreviewCard(data,photo,rootId){
+    let root=v4$(rootId);
+    if(!root)return;
+    root.innerHTML=`<div class="v4-pan-card"><div class="v4-pan-watermark">DEMO • NOT OFFICIAL</div><div class="v4-pan-head"><div><b>आयकर विभाग</b><span>INCOME TAX DEPARTMENT</span></div><div class="v4-emblem">✦</div><div><b>भारत सरकार</b><span>GOVT. OF INDIA</span></div></div><div class="v4-pan-sub">स्थायी लेखा संख्या कार्ड <span>Permanent Account Number Card</span></div><div class="v4-pan-main"><div class="v4-pan-photo"><img src="${v4esc(photo||'')}" alt="Photo"></div><div class="v4-pan-center"><div class="v4-pan-number">${v4esc(data.demoPan||'XXXP0000X')}</div><div class="v4-pan-field"><small>नाम / Name</small><strong>${v4esc(data.name||'YOUR NAME')}</strong></div><div class="v4-pan-field"><small>पिता का नाम / Father's Name</small><strong>${v4esc(data.father||'FATHER NAME')}</strong></div><div class="v4-pan-row"><div><small>लिंग / Gender</small><strong>${v4esc(data.gender||'—')}</strong></div><div><small>जन्म की तारीख / DOB</small><strong>${v4esc(data.dob||'DD/MM/YYYY')}</strong></div></div></div><div class="v4-pan-qr"><span>DEMO</span><div class="fake-qr"></div></div></div><div class="v4-pan-sign"><span>हस्ताक्षर / Signature</span><div>${photo?'':'Signature'}</div></div></div>`;
+  }
+  function v4PreviewData(prefix){
+    const val=id=>v4$(id)?.value?.trim()||'';
+    const dob=val(prefix+'Dob')||'';
+    return {name:[val(prefix+'FirstName'),val(prefix+'MiddleName'),val(prefix+'LastName')].filter(Boolean).join(' '),father:val(prefix+'FatherName'),gender:val(prefix+'Gender'),dob:dob?new Date(dob+'T00:00:00').toLocaleDateString('en-IN'):'DD/MM/YYYY',demoPan:'XXXP0000X'};
+  }
+
+  // Add gender to current preview without changing existing form logic.
+  function v4UpdateNewPreview(){
+    const data={name:[v4$('firstName')?.value,v4$('middleName')?.value,v4$('lastName')?.value].filter(Boolean).join(' '),father:[v4$('fatherFirstName')?.value,v4$('fatherMiddleName')?.value,v4$('fatherlastName')?.value].filter(Boolean).join(' '),gender:v4$('gender')?.value,dob:v4$('dob')?.value?new Date(v4$('dob').value+'T00:00:00').toLocaleDateString('en-IN'):'DD/MM/YYYY',demoPan:'XXXP0000X'};
+    const photo=(croppedFiles.photo||v4$('photo')?.files?.[0]);
+    if(photo){const u=URL.createObjectURL(photo);const target=v4$('newPanFinalPreview');if(target){let card=target.querySelector('.v4-pan-card');if(!card){target.insertAdjacentHTML('afterbegin','<div id="v4NewPanCard"></div>');card=v4$('v4NewPanCard')}v4DemoPreviewCard(data,u,'v4NewPanCard');setTimeout(()=>URL.revokeObjectURL(u),1000);}}
+  }
+  document.addEventListener('input',e=>{if(e.target?.closest('#newpanForm'))v4UpdateNewPreview();});
+  document.addEventListener('change',e=>{if(e.target?.closest('#newpanForm'))v4UpdateNewPreview();});
+
+  // User action center: only actionable/rejected items are shown on home.
+  function v4RenderUserActionCenter(list){
+    const box=v4$('userActionCenter');if(!box)return;
+    const actions=[];
+    list.forEach(a=>{
+      const rejected=Array.isArray(a.rejectedDocuments)?a.rejectedDocuments:[];
+      rejected.forEach(d=>actions.push({type:'doc',app:a,doc:d}));
+      if(String(a.paymentStatus||'').toLowerCase()==='rejected')actions.push({type:'payment',app:a});
+    });
+    if(!actions.length){box.hidden=true;box.innerHTML='';return;}
+    box.hidden=false;
+    box.innerHTML=`<div class="uac-head"><div><span class="eyebrow">ACTION CENTER</span><h2>Action Required</h2><p>Review these items before your application can continue.</p></div><span class="uac-count">${actions.length}</span></div><div class="uac-list">${actions.map(x=>x.type==='doc'?`<article class="uac-item danger"><div class="uac-icon"><i class="fa fa-file-circle-exclamation"></i></div><div class="uac-main"><strong>${v4esc(x.doc.label||V4_DOC_LABELS[x.doc.key]||x.doc.key)}</strong><span>${v4esc(x.app.name||'PAN Application')} • ${v4esc(x.app.ackNo)}</span><p>${v4esc(x.doc.remark||'Document rejected. Please upload again.')}</p></div><button class="uac-btn" type="button" onclick="v4OpenRejectedUpload('${x.app.id}','${v4esc(x.doc.key)}')">Upload Again</button></article>`:`<article class="uac-item danger"><div class="uac-icon"><i class="fa fa-credit-card"></i></div><div class="uac-main"><strong>Payment request rejected</strong><span>${v4esc(x.app.name||'PAN Application')} • ${v4esc(x.app.ackNo)}</span><p>${v4esc(x.app.paymentRemark||x.app.remark||'Please retry the payment.')}</p></div><button class="uac-btn" type="button" onclick="v4RetryRejectedPayment('${x.app.ackNo}')">Retry Payment</button></article>`).join('')}</div>`;
+  }
+  async function v4LoadUserActions(){
+    if(v4UserUnsub){v4UserUnsub();v4UserUnsub=null;}
+    if(!currentUser){const b=v4$('userActionCenter');if(b)b.hidden=true;return;}
+    v4UserUnsub=db.collection('applications').where('userId','==',currentUser.uid).onSnapshot(s=>v4RenderUserActionCenter(s.docs.map(d=>({id:d.id,...d.data()}))),()=>{});
+  }
+  window.v4LoadUserActions=v4LoadUserActions;
+  const _v4LoadHistory=window.loadApplicationHistory;
+  window.loadApplicationHistory=async function(){await _v4LoadHistory();v4LoadUserActions();};
+
+  // Rejected document upload: only that document is replaceable.
+  function v4OpenRejectedUpload(appId,key){
+    const a=(window.__v4UserApps||[]).find(x=>x.id===appId);
+    v4RejectedContext={appId,key};
+    let modal=v4$('v4RejectedUploadModal');
+    if(!modal){modal=document.createElement('div');modal.id='v4RejectedUploadModal';modal.className='popup v4-reject-upload-modal';modal.innerHTML='<div class="popup-box"><div class="v4-upload-head"><div><span class="eyebrow">DOCUMENT REPLACEMENT</span><h3 id="v4RejectTitle">Upload document</h3><p id="v4RejectMeta"></p></div><button class="icon-button" type="button" onclick="closePopup(\'v4RejectedUploadModal\')"><i class="fa fa-times"></i></button></div><div class="v4-upload-note"><i class="fa fa-circle-info"></i> Sirf rejected document replace hoga. Baaki documents safe rahenge.</div><input id="v4RejectedFile" type="file" accept="image/jpeg,image/png,image/webp"><p id="v4RejectedMsg" class="message"></p><div class="popup-actions"><button class="btn ghost" type="button" onclick="closePopup(\'v4RejectedUploadModal\')">Cancel</button><button class="btn" type="button" id="v4RejectedUploadBtn">Crop & Upload</button></div></div>';document.body.appendChild(modal)}
+    const app=window.__v4UserApps?.find(x=>x.id===appId);v4$('v4RejectTitle').textContent=(V4_DOC_LABELS[key]||key)+' — Upload Again';v4$('v4RejectMeta').textContent=`ACK: ${app?.ackNo||''}`;v4$('v4RejectedFile').value='';v4$('v4RejectedMsg').textContent='';
+    openPopup('v4RejectedUploadModal');
+    v4$('v4RejectedUploadBtn').onclick=async()=>{
+      const f=v4$('v4RejectedFile').files?.[0];if(!f){v4$('v4RejectedMsg').textContent='Please select an image.';return;}if(!f.type.startsWith('image/')){v4$('v4RejectedMsg').textContent='Only image files are allowed.';return;}
+      try{v4$('v4RejectedUploadBtn').disabled=true;v4$('v4RejectedMsg').textContent='Uploading…';const url=await uploadToCloudinary(f);const a=window.__v4UserApps?.find(x=>x.id===appId);const rejected=(a?.rejectedDocuments||[]).filter(x=>x.key!==key);const field=key==='oldPanCopy'?'oldPanCopy':key;await db.collection('applications').doc(appId).update({[field]:url,rejectedDocuments:rejected,documentStatuses:{...(a?.documentStatuses||{}),[key]:'pending'},status:'document_verification',lastDocumentResubmitted:key,lastDocumentResubmittedAt:firebase.firestore.FieldValue.serverTimestamp()});showToast('Document uploaded for re-verification ✓');closePopup('v4RejectedUploadModal');}catch(e){v4$('v4RejectedMsg').textContent=e.message||String(e);}finally{v4$('v4RejectedUploadBtn').disabled=false;}
+    };
+  }
+  window.v4OpenRejectedUpload=v4OpenRejectedUpload;
+  window.v4RetryRejectedPayment=async function(ack){try{await openCustomerPaymentByAck(ack);}catch(e){showToast(e.message||String(e),'error')}};
+
+  // Capture user app data for action-center lookup.
+  document.addEventListener('click',()=>{if(currentUser)db.collection('applications').where('userId','==',currentUser.uid).get().then(s=>window.__v4UserApps=s.docs.map(d=>({id:d.id,...d.data()}))).catch(()=>{});},{passive:true});
+
+  // Correction: always show all New PAN details; selected fields are editable, non-selected remain current/read-only.
+  function v4CorrectionField(label,id,opts={}){return `<div class="form-group"><label for="${id}">${label}${opts.required?'*':''}</label><input id="${id}" type="${opts.type||'text'}" ${opts.required?'required':''} ${opts.readonly?'readonly':''}></div>`;}
+  function v4RenderCorrectionAllFields(){
+    const box=v4$('correctionDynamicFields');if(!box)return;const sel=selectedCorrections();
+    const row=(label,id)=>v4CorrectionField(label,id,{required:true,readonly:!sel.includes(id.replace(/^corNew/,'').toLowerCase())});
+    const editable=k=>sel.includes(k);
+    const ro=k=>editable(k)?'':'readonly';
+    box.innerHTML=`<div class="correction-subcard full-details"><h4>Complete PAN Details</h4><p class="section-help">Sabhi New PAN details yahan hain. Jo correction select kiya hai wahi field editable rahega; baaki current details ko same rakhein.</p><div class="form-grid">${v4CorrectionField('Last Name','corNewLastName',{required:true,readonly:!editable('name')})}${v4CorrectionField('First Name','corNewFirstName',{readonly:!editable('name')})}${v4CorrectionField('Middle Name','corNewMiddleName',{readonly:!editable('name')})}${v4CorrectionField('Name as per Aadhaar','corNewNameAadhar',{readonly:!editable('name')})}${v4CorrectionField('Aadhaar Number','corNewAadhaar',{required:true,readonly:true})}${v4CorrectionField('Date of Birth','corNewDob',{type:'date',required:true,readonly:!editable('dob')})}<div class="form-group"><label for="corNewGender">Gender*</label><select id="corNewGender" required ${!editable('gender')?'disabled':''}><option value="">Select</option><option>Male</option><option>Female</option></select></div>${v4CorrectionField("Father's Last Name",'corNewFatherLast',{required:true,readonly:!editable('father')})}${v4CorrectionField("Father's First Name",'corNewFatherFirst',{readonly:!editable('father')})}${v4CorrectionField("Father's Middle Name",'corNewFatherMiddle',{readonly:!editable('father')})}${v4CorrectionField("Mother's Last Name",'corNewMotherLast',{readonly:!editable('mother')})}${v4CorrectionField("Mother's First Name",'corNewMotherFirst',{readonly:!editable('mother')})}${v4CorrectionField("Mother's Middle Name",'corNewMotherMiddle',{readonly:!editable('mother')})}${v4CorrectionField('Phone','corNewPhone',{type:'tel',required:true,readonly:!editable('contact')})}${v4CorrectionField('Email','corNewEmail',{type:'email',required:true,readonly:!editable('contact')})}${v4CorrectionField('PIN Code','corNewPin',{required:true,readonly:!editable('address')})}${v4CorrectionField('Flat No/C/O','corNewFlat',{required:true,readonly:!editable('address')})}${v4CorrectionField('Village/City','corNewVillage',{required:true,readonly:!editable('address')})}${v4CorrectionField('Post Office','corNewPost',{required:true,readonly:!editable('address')})}${v4CorrectionField('Sub Division','corNewSubDivision',{required:true,readonly:!editable('address')})}${v4CorrectionField('District','corNewDistrict',{required:true,readonly:!editable('address')})}${v4CorrectionField('State','corNewState',{required:true,readonly:!editable('address')})}</div></div><div class="correction-subcard"><h4>Guardian Details (Minor)</h4><div class="form-grid">${v4CorrectionField('Guardian Last Name','corNewGuardianLast',{readonly:true})}${v4CorrectionField('Guardian First Name','corNewGuardianFirst',{readonly:true})}${v4CorrectionField('Guardian Middle Name','corNewGuardianMiddle',{readonly:true})}</div></div><div class="correction-subcard"><h4>Other Correction</h4><div class="form-group"><label for="corOtherValue">Other details</label><textarea id="corOtherValue" rows="3"></textarea></div></div>`;
+    const base={corNewLastName:v4$('corLastName')?.value||'',corNewFirstName:v4$('corFirstName')?.value||'',corNewMiddleName:v4$('corMiddleName')?.value||'',corNewNameAadhar:v4$('corNameAadhar')?.value||'',corNewAadhaar:v4$('corAadhaar')?.value||'',corNewDob:v4$('corDob')?.value||'',corNewGender:v4$('corGender')?.value||'',corNewFatherLast:'',corNewFatherFirst:v4$('corFatherName')?.value||'',corNewFatherMiddle:'',corNewMotherLast:'',corNewMotherFirst:v4$('corMotherName')?.value||'',corNewMotherMiddle:'',corNewPhone:v4$('corPhone')?.value||'',corNewEmail:v4$('corEmail')?.value||'',corNewPin:v4$('corPin')?.value||'',corNewFlat:v4$('corFlat')?.value||'',corNewVillage:v4$('corVillage')?.value||'',corNewPost:v4$('corPost')?.value||'',corNewSubDivision:v4$('corSubDivision')?.value||'',corNewDistrict:v4$('corDistrict')?.value||'',corNewState:v4$('corState')?.value||''};
+    Object.entries(base).forEach(([id,val])=>{const e=v4$(id);if(e&&!e.value)e.value=val});
+    const bindIds=Object.keys(base).concat(['corOtherValue']);bindIds.forEach(id=>{const e=v4$(id);if(e)e.oninput=()=>{syncCorrectionToBase();updateCorrectionPreview();updateCorrectionSummary();saveCorrectionDraft();}});
+  }
+  const _v4RenderCorrectionDynamicFields=window.renderCorrectionDynamicFields;
+  window.renderCorrectionDynamicFields=function(){v4RenderCorrectionAllFields();};
+  const _v4LoadCorrectionDraft=window.loadCorrectionDraft;
+  window.loadCorrectionDraft=function(){try{_v4LoadCorrectionDraft();}catch(e){}v4RenderCorrectionAllFields();};
+
+  // Include old PAN copy in correction crop/upload validation.
+  const _v4BuildCorrectionData=window.buildCorrectionData;
+  window.buildCorrectionData=function(){const d=_v4BuildCorrectionData();d.oldPanCopy=v4$('corOldPanCopy')?.files?.[0]?'':(window.croppedFiles?.corOldPanCopy||'');return d;};
+  // Capture correction submit and perform image-only upload with old PAN copy.
+  document.addEventListener('submit',e=>{
+    if(e.target?.id!=='correctionForm')return;
+    e.preventDefault();e.stopImmediatePropagation();
+    v4SubmitCorrection();
+  },true);
+  async function v4SubmitCorrection(){
+    if(!currentUser)return redirectToLogin();
+    if(!validateCorrectionStep())return;
+    const ids=['corPhoto','corSignature','corAadhaarFront','corAadhaarBack','corDobProof','corOldPanCopy'];
+    const files=ids.map(id=>window.croppedFiles?.[id]||v4$(id)?.files?.[0]);
+    if(files.some(f=>!f)){showToast('Correction ke liye sabhi required documents upload karein, including Old PAN Copy.','error');correctionStepIndex=correctionSteps.length-2;renderCorrectionSteps();return;}
+    const btn=v4$('corSubmitBtn');try{btn.disabled=true;btn.textContent='Uploading Documents…';const urls=await Promise.all(files.map(uploadToCloudinary));const d=window.buildCorrectionData();Object.assign(d,{photo:urls[0],signature:urls[1],aadhaarFront:urls[2],aadhaarBack:urls[3],dobProof:urls[4],oldPanCopy:urls[5],status:'pending',workflowStage:'payment_verification',paymentStatus:'pending',paymentAmount:Number(v4Settings.panFee||190),documentStatuses:{photo:'pending',signature:'pending',aadhaarFront:'pending',aadhaarBack:'pending',dobProof:'pending',oldPanCopy:'pending'}});const ref=await db.collection('applications').add(d);d.id=ref.id;generatePDF(d);clearCorrectionDraft();resetCorrectionFormAfterSubmit();showToast('PAN Correction submitted successfully ✓');setTimeout(()=>openCustomerPaymentByAck(d.ackNo),600);}catch(e){showToast('Correction error: '+(e.message||e),'error');}finally{btn.disabled=false;btn.textContent='Submit Correction';}
+  }
+
+  // Direct payment uses live admin UPI and current admin fee.
+  window.openDirectPayment=async function(ack){
+    const snap=await db.collection('applications').where('ackNo','==',ack).limit(1).get();if(snap.empty)throw new Error('Application not found.');const app={id:snap.docs[0].id,...snap.docs[0].data()};if(String(app.paymentStatus||'').toLowerCase()==='paid')throw new Error('Payment already verified.');const s=await v4GetSettings();const amount=Number(app.paymentAmount||s.panFee||190);v4$('directPayCustomer').textContent=`${getCustomerName(app)} • ${app.ackNo}`;v4$('directPayAmount').textContent=amount.toLocaleString('en-IN');v4$('directPayQr').innerHTML='';const upi=`upi://pay?pa=${encodeURIComponent(s.upiId)}&pn=${encodeURIComponent(s.businessName||'TECH SOURCE')}&am=${encodeURIComponent(amount.toFixed(2))}&cu=INR&tn=${encodeURIComponent(`PAN Payment | ACK: ${app.ackNo}`)}`;if(window.QRCode)new QRCode(v4$('directPayQr'),{text:upi,width:190,height:190,correctLevel:QRCode.CorrectLevel.M});v4$('directPayUtr').value='';v4$('directPaySubmit').dataset.appId=app.id;v4$('directPaySubmit').dataset.ack=app.ackNo;const upiEl=document.querySelector('#directPaymentView .cp-upi strong');if(upiEl)upiEl.textContent=s.upiId;openPopup('paymentPopup');
+  };
+
+  // Customer payment page always uses the amount stored in the payment-link document and live admin UPI.
+  const _v4LoadCustomerPaymentPage=window.loadCustomerPaymentPage;
+  window.loadCustomerPaymentPage=async function(){const result=await _v4LoadCustomerPaymentPage();try{const s=await v4GetSettings();const u=v4$('cpUpi');if(u)u.textContent=s.upiId; if(customerPaymentContext?.amount) v4$('cpAmount').textContent=Number(customerPaymentContext.amount).toLocaleString('en-IN');}catch(e){}return result;};
+
+  window.retryCustomerPayment=async function(){
+    if(!customerPaymentContext?.id)return;
+    try{const now=firebase.firestore.FieldValue.serverTimestamp();await db.collection('customerPaymentRequests').doc(customerPaymentContext.id).update({status:'pending',paymentStatus:'pending',utr:'',customerMarkedPaid:false,retryAt:now});if(customerPaymentContext.applicationId)await db.collection('applications').doc(customerPaymentContext.applicationId).update({paymentStatus:'pending',paymentRequestSubmittedAt:null});customerPaymentContext.status='pending';const panel=v4$('cpSuccessPanel');if(panel)panel.hidden=true;document.querySelector('.cp-qr-wrap')?.classList.remove('v3-paid-hide');document.querySelector('.cp-upi')?.classList.remove('v3-paid-hide');v4$('cpDoneBtn').hidden=false;v4$('cpDoneBtn').disabled=false;v4$('cpStatus').textContent='Payment page ready again. Please complete the payment.';v4$('cpStatus').style.color='';await v4LoadCustomerPaymentPage();}catch(e){showToast(e.message||String(e),'error');}
+  };
+
+  // Customer payment done: immediate polished pending state; QR disappears. UTR remains available if configured.
+  window.customerPaymentDone=async function(){
+    if(!customerPaymentContext?.id)return;const btn=v4$('cpDoneBtn');if(btn)btn.disabled=true;
+    try{const now=firebase.firestore.FieldValue.serverTimestamp();await db.collection('customerPaymentRequests').doc(customerPaymentContext.id).update({status:'customer_marked_paid',paymentStatus:'verification_pending',customerMarkedPaid:true,customerMarkedPaidAt:now});if(customerPaymentContext.applicationId)await db.collection('applications').doc(customerPaymentContext.applicationId).update({paymentStatus:'verification_pending',customerPaymentRequestId:customerPaymentContext.id,paymentRequestSubmittedAt:now});customerPaymentContext.status='customer_marked_paid';document.querySelector('.cp-qr-wrap')?.classList.add('v3-paid-hide');document.querySelector('.cp-upi')?.classList.add('v3-paid-hide');const panel=v4$('cpSuccessPanel');if(panel)panel.hidden=false;v4$('cpTitle').textContent='Payment Request Sent';v4$('cpMessage').textContent='Your payment request has been sent. Payment is pending for review. Please wait.';v4$('cpStatus').textContent='Verification Pending';v4$('cpStatus').style.color='#15803d';if(btn)btn.hidden=true;}catch(e){if(btn)btn.disabled=false;v4$('cpStatus').textContent='Could not send request: '+(e.message||e);v4$('cpStatus').style.color='#dc2626';}
+  };
+
+  // Keep receipt as the only PDF output. Documents remain images only.
+  function v4ImageAccept(){return 'image/jpeg,image/png,image/webp';}
+  document.addEventListener('DOMContentLoaded',()=>{
+    document.querySelectorAll('input[type=file]').forEach(i=>{if(i.id!=='profilePhoto'&&!/final/i.test(i.id))i.accept=v4ImageAccept();});
+    const sm=v4$('serviceMenuBtn');if(sm)sm.onclick=()=>toggleServiceMenu();
+    v4ApplySettingsToUI();
+    if(currentUser)v4LoadUserActions();
+  });
+  window.toggleServiceMenu=function(force){const d=v4$('serviceDrawer');if(!d)return;const open=force===undefined?!d.classList.contains('show'):force;d.classList.toggle('show',open);d.setAttribute('aria-hidden',String(!open));};
+  document.addEventListener('click',e=>{const d=v4$('serviceDrawer'),w=document.querySelector('.service-menu-wrap');if(d?.classList.contains('show')&&!w?.contains(e.target))toggleServiceMenu(false);});
+})();
+/* V4 corrections: reliable rejected-app lookup and workflow metadata defaults */
+(function(){
+  const oldBuild=window.v3BuildFormData;
+  if(oldBuild) window.v3BuildFormData=function(){
+    const d=oldBuild();
+    const ds={photo:'pending',signature:'pending',aadhaarFront:'pending',aadhaarBack:'pending',dobProof:'pending'};
+    if(d.guardianFront)ds.guardianFront='pending'; if(d.guardianBack)ds.guardianBack='pending';
+    d.documentStatuses=ds; d.workflowStage='payment_verification'; d.paymentAmount=Number(window.v4Settings?.panFee||d.paymentAmount||190);
+    return d;
+  };
+  window.v4OpenRejectedUpload=async function(appId,key){
+    let app=null; try{const s=await db.collection('applications').doc(appId).get();if(!s.exists){showToast('Application not found.','error');return;}app={id:s.id,...s.data()};}catch(e){showToast('Could not load application.','error');return;}
+    window.v4RejectedContext={appId,key};
+    let modal=document.getElementById('v4RejectedUploadModal');
+    if(!modal){modal=document.createElement('div');modal.id='v4RejectedUploadModal';modal.className='popup v4-reject-upload-modal';modal.innerHTML='<div class="popup-box"><div class="v4-upload-head"><div><span class="eyebrow">DOCUMENT REPLACEMENT</span><h3 id="v4RejectTitle">Upload document</h3><p id="v4RejectMeta"></p></div></div><div class="v4-upload-note"><i class="fa fa-circle-info"></i> Sirf rejected document replace hoga. Baaki documents safe rahenge.</div><input id="v4RejectedFile" type="file" accept="image/jpeg,image/png,image/webp"><p id="v4RejectedMsg" class="message"></p><div class="popup-actions"><button class="btn ghost" type="button" onclick="closePopup(\'v4RejectedUploadModal\')">Cancel</button><button class="btn" type="button" id="v4RejectedUploadBtn">Upload Document</button></div></div>';document.body.appendChild(modal)}
+    document.getElementById('v4RejectTitle').textContent=(window.__v4DocLabels?.[key]||({photo:'Photo',signature:'Signature',aadhaarFront:'Aadhaar Front',aadhaarBack:'Aadhaar Back',dobProof:'DOB Proof',guardianFront:'Guardian Aadhaar Front',guardianBack:'Guardian Aadhaar Back',oldPanCopy:'Old PAN Card Copy'}[key]||key))+' — Upload Again';
+    document.getElementById('v4RejectMeta').textContent='ACK: '+(app.ackNo||'');document.getElementById('v4RejectedFile').value='';document.getElementById('v4RejectedMsg').textContent='';openPopup('v4RejectedUploadModal');
+    document.getElementById('v4RejectedUploadBtn').onclick=async()=>{const f=document.getElementById('v4RejectedFile').files?.[0],msg=document.getElementById('v4RejectedMsg'),btn=document.getElementById('v4RejectedUploadBtn');if(!f){msg.textContent='Please select an image.';return;}if(!f.type.startsWith('image/')){msg.textContent='Only JPG, JPEG, PNG or WEBP allowed.';return;}try{btn.disabled=true;msg.textContent='Uploading…';const url=await uploadToCloudinary(f);const rejected=(app.rejectedDocuments||[]).filter(x=>x.key!==key);const statuses={...(app.documentStatuses||{}),[key]:'pending'};const update={[key]:url,rejectedDocuments:rejected,documentStatuses:statuses,workflowStage:'document_verification',lastDocumentResubmitted:key,lastDocumentResubmittedAt:firebase.firestore.FieldValue.serverTimestamp()};await db.collection('applications').doc(appId).update(update);showToast('Document uploaded for re-verification ✓');closePopup('v4RejectedUploadModal');}catch(e){msg.textContent=e.message||String(e);}finally{btn.disabled=false;}};
+  };
+})();
+/* V4 final: load current fee before New PAN preview/submission */
+(function(){
+  const oldIntercept=window.v3InterceptNewSubmit;
+  if(oldIntercept) window.v3InterceptNewSubmit=async function(e){
+    e.preventDefault();e.stopImmediatePropagation();
+    try{const s=await window.v4GetSettings();window.__v4PanFee=Number(s.panFee||190);}catch(e){window.__v4PanFee=190;}
+    const data=window.v3BuildFormData(); if(data)data.paymentAmount=window.__v4PanFee||190;
+    if(!data)return; window.v3OpenPreview(data);
+  };
+  const oldBuild=window.v3BuildFormData;
+  if(oldBuild) window.v3BuildFormData=function(){const d=oldBuild();d.paymentAmount=Number(window.__v4PanFee||d.paymentAmount||190);return d;};
+})();
+/* V4 customer payment page refresh: apply live UPI after legacy startup call. */
+if(window.customerPaymentLoaded){setTimeout(()=>window.loadCustomerPaymentPage?.(),0);}
+/* V4 rejected customer payment link can be reopened for another payment attempt. */
+(function(){
+  const base=window.loadCustomerPaymentPage;
+  window.loadCustomerPaymentPage=async function(){const ok=await base();if(customerPaymentContext?.status==='rejected'){const s=await window.v4GetSettings();document.querySelector('.cp-qr-wrap')?.classList.remove('v3-paid-hide');document.querySelector('.cp-upi')?.classList.remove('v3-paid-hide');document.getElementById('cpSuccessPanel')?.setAttribute('hidden','');document.getElementById('cpTitle').textContent='Payment Rejected';document.getElementById('cpMessage').textContent='Your previous payment request was rejected. You can retry the payment below.';document.getElementById('cpStatus').textContent='Please complete the payment again.';document.getElementById('cpDoneBtn').hidden=false;document.getElementById('cpDoneBtn').disabled=false;document.getElementById('cpUpi').textContent=s.upiId||'';}return ok;};
+  if(window.customerPaymentLoaded)setTimeout(()=>window.loadCustomerPaymentPage?.(),50);
+})();
+/* V4 correction sync/draft support for the complete New PAN field set. */
+(function(){
+  const oldSync=window.syncCorrectionToBase;
+  window.syncCorrectionToBase=function(){
+    const val=id=>document.getElementById(id)?.value||'';
+    const set=(id,v)=>{const e=document.getElementById(id);if(e&&v!==undefined)e.value=v;};
+    if(selectedCorrections().includes('name')){set('corFirstName',val('corNewFirstName'));set('corMiddleName',val('corNewMiddleName'));set('corLastName',val('corNewLastName'));}
+    if(selectedCorrections().includes('father'))set('corFatherName',[val('corNewFatherFirst'),val('corNewFatherMiddle'),val('corNewFatherLast')].filter(Boolean).join(' '));
+    if(selectedCorrections().includes('mother'))set('corMotherName',[val('corNewMotherFirst'),val('corNewMotherMiddle'),val('corNewMotherLast')].filter(Boolean).join(' '));
+    if(selectedCorrections().includes('dob'))set('corDob',val('corNewDob'));if(selectedCorrections().includes('gender'))set('corGender',val('corNewGender'));if(selectedCorrections().includes('contact')){set('corPhone',val('corNewPhone'));set('corEmail',val('corNewEmail'));}if(selectedCorrections().includes('address')){['Pin','Flat','Village','Post','SubDivision','District','State'].forEach(k=>set('cor'+k,val('corNew'+k)));}
+  };
+  const oldInputIds=window.correctionInputIds;
+  window.correctionInputIds=function(){const base=oldInputIds?oldInputIds():[];return [...new Set(base.concat(['corNewLastName','corNewFirstName','corNewMiddleName','corNewNameAadhar','corNewAadhaar','corNewDob','corNewGender','corNewFatherLast','corNewFatherFirst','corNewFatherMiddle','corNewMotherLast','corNewMotherFirst','corNewMotherMiddle','corNewGuardianLast','corNewGuardianFirst','corNewGuardianMiddle','corNewPhone','corNewEmail','corNewPin','corNewFlat','corNewVillage','corNewPost','corNewSubDivision','corNewDistrict','corNewState','corOtherValue']))]};
+})();
+/* V4 user timeline: exact payment → documents → process → PAN workflow. */
+(function(){
+  const stageLabels={payment_verification:'Payment Verification',document_verification:'Document Verification',under_process:'Under Process',pan_processing:'PAN Processing',approved:'Approved',final_upload:'Final PAN Upload',completed:'Completed'};
+  function userStage(a){return a.workflowStage||((String(a.paymentStatus||'').toLowerCase()==='paid')?'document_verification':'payment_verification');}
+  window.renderTimeline=function(a){const order=['payment_verification','document_verification','under_process','pan_processing','approved','final_upload','completed'];const cur=Math.max(0,order.indexOf(userStage(a)));return `<div class="status-timeline v4-user-timeline">${order.map((s,i)=>`<div class="timeline-step ${i<cur?'done':i===cur?'active':''}"><span>${i<cur?'✓':i+1}</span><strong>${stageLabels[s]}</strong></div>`).join('')}</div>`};
+  window.renderStatusDetails=function(data){const stage=userStage(data),docs=data.documentStatuses||{},rejected=Array.isArray(data.rejectedDocuments)?data.rejectedDocuments:[];return `<div class="status-panel v4-status-panel"><div class="status-panel-head"><div><span class="history-label">Application Status</span><h4>${escapeHtml(data.name||'PAN Application')}</h4><p>${escapeHtml(data.ackNo||'N/A')}</p></div><span class="status-badge ${stage==='completed'?'approved':rejected.length?'rejected':'pending'}">${escapeHtml(stageLabels[stage]||stage)}</span></div>${renderTimeline(data)}<div class="status-list"><div class="status-row"><small>Payment</small><strong>${data.paymentStatus==='paid'?'✓ Verified':'Pending Verification'}</strong></div><div class="status-row"><small>Documents</small><strong>${rejected.length?'Action Required':Object.keys(docs).length?Object.values(docs).filter(x=>x==='verified').length+' verified':'Pending Verification'}</strong></div><div class="status-row"><small>Applied On</small><strong>${escapeHtml(formatDate(data.createdAt))}</strong></div><div class="status-row status-row-wide"><small>Remark</small><strong>${escapeHtml(data.remark||'No remark')}</strong></div></div>${rejected.length?`<div class="v4-user-rejected-list"><b>Documents needing attention</b>${rejected.map(r=>`<div><span>${escapeHtml(r.label||r.key)}</span><button type="button" onclick="v4OpenRejectedUpload('${data.id}','${escapeHtml(r.key)}')">Upload Again</button><small>${escapeHtml(r.remark||'')}</small></div>`).join('')}</div>`:''}</div>`};
+})();
+
+/* TECH SOURCE FINAL UX PATCH */
+(function(){
+  const escU=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  const labelU={photo:'Photo',signature:'Signature',aadhaarFront:'Aadhaar Front',aadhaarBack:'Aadhaar Back',dobProof:'DOB Proof',guardianFront:'Guardian Aadhaar Front',guardianBack:'Guardian Aadhaar Back',oldPanCopy:'Old PAN Card Copy'};
+  function userAppsDocs(a){
+    const docs=['photo','signature','aadhaarFront','aadhaarBack','dobProof'];
+    if(a.guardianFront)docs.push('guardianFront');
+    if(a.guardianBack)docs.push('guardianBack');
+    if(a.oldPanCopy)docs.push('oldPanCopy');
+    return docs;
+  }
+  function allDocsVerifiedU(a){
+    const statuses=a.documentStatuses||{};
+    const docs=userAppsDocs(a);
+    return docs.length>0 && docs.every(k=>String(statuses[k]||'pending').toLowerCase()==='verified');
+  }
+  function renderHeaderActionsU(list){
+    const badge=document.getElementById('userActionBadge'),panel=document.getElementById('serviceActionPanel');
+    if(!badge||!panel)return;
+    const actions=[];
+    list.forEach(a=>{
+      (Array.isArray(a.rejectedDocuments)?a.rejectedDocuments:[]).forEach(d=>actions.push({type:'doc',app:a,doc:d}));
+      if(String(a.paymentStatus||'').toLowerCase()==='rejected')actions.push({type:'payment',app:a});
+    });
+    badge.textContent=actions.length;
+    badge.hidden=!actions.length;
+    if(!actions.length){panel.hidden=true;panel.innerHTML='';return;}
+    panel.hidden=false;
+    panel.innerHTML=`<div class="service-action-head"><div><b>Action Required</b><small>${actions.length} item${actions.length===1?'':'s'} need your attention</small></div><span>${actions.length}</span></div><div class="service-action-list">${actions.map(x=>x.type==='doc'?`<div class="service-action-item"><div class="service-action-icon"><i class="fa fa-file-circle-exclamation"></i></div><div><b>${escU(x.doc.label||labelU[x.doc.key]||x.doc.key)}</b><small>${escU(x.app.ackNo||'')}</small><p>${escU(x.doc.remark||'Document rejected. Please upload again.')}</p></div><button type="button" onclick="v4OpenRejectedUpload('${escU(x.app.id)}','${escU(x.doc.key)}')">Upload</button></div>`:`<div class="service-action-item"><div class="service-action-icon"><i class="fa fa-credit-card"></i></div><div><b>Payment request rejected</b><small>${escU(x.app.ackNo||'')}</small><p>${escU(x.app.paymentRemark||x.app.remark||'Please retry the payment.')}</p></div><button type="button" onclick="v4RetryRejectedPayment('${escU(x.app.ackNo)}')">Retry</button></div>`).join('')}</div>`;
+  }
+  // Replace the old home notification/action bar with a compact header badge + service drawer actions.
+  window.v4RenderUserActionCenter=renderHeaderActionsU;
+  window.v4LoadUserActions=async function(){
+    if(window.__finalUserActionUnsub){window.__finalUserActionUnsub();window.__finalUserActionUnsub=null;}
+    const old=document.getElementById('userActionCenter');if(old)old.remove();
+    if(!currentUser){const b=document.getElementById('userActionBadge');if(b)b.hidden=true;const p=document.getElementById('serviceActionPanel');if(p){p.hidden=true;p.innerHTML='';}return;}
+    window.__finalUserActionUnsub=db.collection('applications').where('userId','==',currentUser.uid).onSnapshot(s=>renderHeaderActionsU(s.docs.map(d=>({id:d.id,...d.data()}))),()=>{});
+  };
+
+  // If an old startup callback already ran, start the new compact action indicator as well.
+  document.addEventListener('DOMContentLoaded',()=>{setTimeout(()=>window.v4LoadUserActions?.(),500);});
+})();
+
+/* FINAL PAN DEMO PREVIEW: show the uploaded signature in the correct signature area. */
+(function(){
+  const escP=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  window.v4DemoPreviewCard=function(data,photo,rootId,signature){
+    const root=document.getElementById(rootId);if(!root)return;
+    root.innerHTML=`<div class="v4-pan-card"><div class="v4-pan-watermark">DEMO • NOT OFFICIAL</div><div class="v4-pan-head"><div><b>आयकर विभाग</b><span>INCOME TAX DEPARTMENT</span></div><div class="v4-emblem">✦</div><div><b>भारत सरकार</b><span>GOVT. OF INDIA</span></div></div><div class="v4-pan-sub">स्थायी लेखा संख्या कार्ड <span>Permanent Account Number Card</span></div><div class="v4-pan-main"><div class="v4-pan-photo"><img src="${escP(photo||'')}" alt="Photo"></div><div class="v4-pan-center"><div class="v4-pan-number">${escP(data.demoPan||'XXXP0000X')}</div><div class="v4-pan-field"><small>नाम / Name</small><strong>${escP(data.name||'YOUR NAME')}</strong></div><div class="v4-pan-field"><small>पिता का नाम / Father's Name</small><strong>${escP(data.father||'FATHER NAME')}</strong></div><div class="v4-pan-row"><div><small>लिंग / Gender</small><strong>${escP(data.gender||'—')}</strong></div><div><small>जन्म की तारीख / DOB</small><strong>${escP(data.dob||'DD/MM/YYYY')}</strong></div></div></div><div class="v4-pan-qr"><span>DEMO</span><div class="fake-qr"></div></div></div><div class="v4-pan-sign"><span>हस्ताक्षर / Signature</span>${signature?`<img src="${escP(signature)}" alt="Signature">`:'<div>Signature</div>'}</div></div>`;
+  };
+  window.v4UpdateNewPreview=function(){
+    const val=id=>document.getElementById(id)?.value||'';
+    const data={name:[val('firstName'),val('middleName'),val('lastName')].filter(Boolean).join(' '),father:[val('fatherFirstName'),val('fatherMiddleName'),val('fatherlastName')].filter(Boolean).join(' '),gender:val('gender'),dob:val('dob')?new Date(val('dob')+'T00:00:00').toLocaleDateString('en-IN'):'DD/MM/YYYY',demoPan:'XXXP0000X'};
+    const photo=window.croppedFiles?.photo||document.getElementById('photo')?.files?.[0];
+    const signature=window.croppedFiles?.signature||document.getElementById('signature')?.files?.[0];
+    if(!photo)return;
+    const pu=URL.createObjectURL(photo),su=signature?URL.createObjectURL(signature):'';
+    let target=document.getElementById('newPanFinalPreview');if(!target){URL.revokeObjectURL(pu);if(su)URL.revokeObjectURL(su);return;}
+    let root=document.getElementById('v4NewPanCard');if(!root){root=document.createElement('div');root.id='v4NewPanCard';target.prepend(root);}
+    window.v4DemoPreviewCard(data,pu,'v4NewPanCard',su);
+    setTimeout(()=>{URL.revokeObjectURL(pu);if(su)URL.revokeObjectURL(su)},1000);
+  };
+  document.addEventListener('input',e=>{if(e.target?.closest('#newpanForm'))window.v4UpdateNewPreview();});
+  document.addEventListener('change',e=>{if(e.target?.closest('#newpanForm'))window.v4UpdateNewPreview();});
+})();
+
+/* FINAL PAYMENT UX: customer-link QR always uses live admin UPI; link amount remains immutable. */
+(function(){
+  function rebuildCustomerQr(){
+    const ctx=window.customerPaymentContext;if(!ctx)return;
+    const qr=document.getElementById('cpQr');if(!qr||!window.QRCode)return;
+    const amount=Number(ctx.amount||0); if(!amount)return;
+    window.v4GetSettings?.().then(s=>{
+      qr.innerHTML='';
+      const upi=`upi://pay?pa=${encodeURIComponent(s.upiId||'')}&pn=${encodeURIComponent(s.businessName||'TECH SOURCE')}&am=${encodeURIComponent(amount.toFixed(2))}&cu=INR&tn=${encodeURIComponent(`PAN Payment | ACK: ${ctx.ackNo||''} | NAME: ${ctx.name||''}`)}`;
+      new QRCode(qr,{text:upi,width:190,height:190,correctLevel:QRCode.CorrectLevel.M});
+      const u=document.getElementById('cpUpi');if(u)u.textContent=s.upiId||'';
+    }).catch(()=>{});
+  }
+  const baseLoad=window.loadCustomerPaymentPage;
+  window.loadCustomerPaymentPage=async function(){
+    const result=await baseLoad?.();
+    setTimeout(rebuildCustomerQr,50);
+    return result;
+  };
+  window.retryCustomerPayment=async function(){
+    if(!window.customerPaymentContext?.id)return;
+    try{
+      const now=firebase.firestore.FieldValue.serverTimestamp();
+      await db.collection('customerPaymentRequests').doc(customerPaymentContext.id).update({status:'pending',paymentStatus:'pending',utr:'',customerMarkedPaid:false,retryAt:now});
+      if(customerPaymentContext.applicationId)await db.collection('applications').doc(customerPaymentContext.applicationId).update({paymentStatus:'pending',paymentRequestSubmittedAt:null});
+      customerPaymentContext.status='pending';
+      const panel=document.getElementById('cpSuccessPanel');if(panel)panel.hidden=true;
+      document.querySelector('.cp-qr-wrap')?.classList.remove('v3-paid-hide');
+      document.querySelector('.cp-upi')?.classList.remove('v3-paid-hide');
+      const done=document.getElementById('cpDoneBtn');if(done){done.hidden=false;done.disabled=false;}
+      const status=document.getElementById('cpStatus');if(status){status.textContent='Payment page ready again. Please complete the payment.';status.style.color='';}
+      await window.loadCustomerPaymentPage?.();
+      rebuildCustomerQr();
+    }catch(e){showToast(e.message||String(e),'error');}
+  };
+  const oldDone=window.customerPaymentDone;
+  window.customerPaymentDone=async function(){
+    await oldDone?.();
+    try{showPaymentReceivedAnimation?.();}catch(e){}
+  };
+})();
